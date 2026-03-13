@@ -45,6 +45,7 @@ type ItineraryRow = {
 type Poi = {
   id: string;
   name: string;
+  category: Place['category'];
   latitude: number;
   longitude: number;
   is_indoor: boolean;
@@ -133,6 +134,7 @@ export default function TripDashboardPage({ params }: PageProps) {
       tripData.places.map((place) => ({
         id: place.id,
         name: place.name,
+        category: place.category,
         latitude: place.latitude,
         longitude: place.longitude,
         is_indoor: place.is_indoor,
@@ -345,6 +347,7 @@ export default function TripDashboardPage({ params }: PageProps) {
       const nextPlace: Poi = {
         id: placeId,
         name: newStop.placeName.trim(),
+        category: 'other',
         latitude,
         longitude,
         is_indoor: newStop.isIndoor,
