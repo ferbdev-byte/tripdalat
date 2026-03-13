@@ -1,8 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Backpack, BrainCircuit, CheckCircle2, Circle, CloudDrizzle, Coffee, Compass, Dice6, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { BrainCircuit, CloudDrizzle, Compass, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Toaster, toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
@@ -64,24 +64,6 @@ type NewStopForm = {
 };
 
 type FocusMode = 'all' | 'risky' | 'indoor';
-type TripMood = 'lãng mạn' | 'phiêu lưu' | 'chill';
-
-const DALAT_CHECKLIST = [
-  { id: 'cl-1', label: 'Cà phê sáng trong sương mù' },
-  { id: 'cl-2', label: 'Săn mây bình minh Cầu Đất' },
-  { id: 'cl-3', label: 'Ăn bánh tráng nướng chợ đêm' },
-  { id: 'cl-4', label: 'Ngắm hoa dã quỳ / hoa Đà Lạt' },
-  { id: 'cl-5', label: 'Thưởng thức cơm gà Đà Lạt' },
-  { id: 'cl-6', label: 'Chụp ảnh Nhà thờ Con Gà' },
-  { id: 'cl-7', label: 'Đạp xe quanh hồ Xuân Hương' },
-  { id: 'cl-8', label: 'Mua mứt / trà atiso làm quà' },
-] as const;
-
-const MOOD_CONFIG: Record<TripMood, { emoji: string; desc: string; categories: Place['category'][] }> = {
-  'lãng mạn': { emoji: '🌸', desc: 'Cafe, góc nhỏ, hoa và sương chiều', categories: ['cafe', 'sightseeing'] },
-  'phiêu lưu': { emoji: '⛰️', desc: 'Đồi núi, track, bình minh săn mây', categories: ['sightseeing'] },
-  'chill': { emoji: '☕', desc: 'Đọc sách, cà phê, không có kế hoạch', categories: ['cafe', 'food'] },
-};
 
 const toHourKey = (timeValue: string | null) => {
   if (!timeValue) return null;
@@ -101,12 +83,6 @@ export default function TripDashboardPage({ params }: PageProps) {
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   const [travelMinutesByItemId, setTravelMinutesByItemId] = useState<Record<string, number>>({});
   const [isAddStopOpen, setIsAddStopOpen] = useState(false);
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [spinResult, setSpinResult] = useState<Poi | null>(null);
-  const [spinDisplayName, setSpinDisplayName] = useState('');
-  const [selectedMood, setSelectedMood] = useState<TripMood | null>(null);
-  const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [newStop, setNewStop] = useState<NewStopForm>({
     placeName: '',
     latitude: '',
@@ -340,39 +316,6 @@ export default function TripDashboardPage({ params }: PageProps) {
     });
   }, [pois, swapSuggestions]);
 
-  const handleSpin = useCallback(() => {
-    if (isSpinning || pois.length === 0) return;
-    setIsSpinning(true);
-    setSpinResult(null);
-    const preferredPois = isRaining ? pois.filter((p) => p.is_indoor) : pois.filter((p) => !p.is_indoor);
-    const pool = preferredPois.length > 0 ? preferredPois : pois;
-    const chosen = pool[Math.floor(Math.random() * pool.length)];
-    let count = 0;
-    spinIntervalRef.current = setInterval(() => {
-      const random = pois[Math.floor(Math.random() * pois.length)];
-      setSpinDisplayName(random.name);
-      count += 1;
-      if (count > 18) {
-        if (spinIntervalRef.current) clearInterval(spinIntervalRef.current);
-        setSpinDisplayName(chosen.name);
-        setSpinResult(chosen);
-        setIsSpinning(false);
-      }
-    }, 80);
-  }, [isSpinning, isRaining, pois]);
-
-  const handleToggleChecklist = useCallback((id: string) => {
-    setCheckedItems((previous) => {
-      const next = new Set(previous);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
-
   const handleSetTravelMinutes = useCallback((itemId: string, minutesValue: string) => {
     const minutes = Number(minutesValue);
     if (Number.isNaN(minutes)) return;
@@ -453,26 +396,6 @@ export default function TripDashboardPage({ params }: PageProps) {
     return pois.find((place) => place.id === selectedPoiId) ?? null;
   }, [pois, selectedPoiId]);
 
-  const packingItems = useMemo(() => {
-    const avgRain = weatherInsight.avgRain;
-    return [
-      { id: 'pk-1', label: 'Áo khoác nhẹ / gió', show: true },
-      { id: 'pk-2', label: 'Giày đế bằng, dễ đi bộ', show: true },
-      { id: 'pk-3', label: 'Ô / áo mưa', show: avgRain >= 40 },
-      { id: 'pk-4', label: 'Kem chống nắng', show: avgRain < 50 },
-      { id: 'pk-5', label: 'Khăn quàng cổ / mũ len', show: true },
-      { id: 'pk-6', label: 'Pin dự phòng + cáp sạc', show: true },
-      { id: 'pk-7', label: 'Khẩu trang lọc phấn hoa', show: avgRain < 60 },
-      { id: 'pk-8', label: 'Bình giữ nhiệt cho cà phê', show: true },
-    ].filter((item) => item.show);
-  }, [weatherInsight.avgRain]);
-
-  const moodFilteredPois = useMemo(() => {
-    if (!selectedMood) return [];
-    const cats = MOOD_CONFIG[selectedMood].categories as string[];
-    return pois.filter((p) => cats.includes(p.category));
-  }, [selectedMood, pois]);
-
   return (
     <main className="relative min-h-screen space-y-6 overflow-hidden bg-[#FDFCFB] p-4 sm:space-y-8 sm:p-6 md:space-y-10 md:p-10">
       <div className="pointer-events-none absolute -left-20 top-4 h-48 w-48 animate-mist rounded-full bg-rose/20 blur-3xl sm:top-10 sm:h-72 sm:w-72" />
@@ -526,141 +449,6 @@ export default function TripDashboardPage({ params }: PageProps) {
             <div className="h-full rounded-full bg-rose transition-all duration-700" style={{ width: `${weatherInsight.indoorRatio}%` }} />
           </div>
         </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {/* Spin Wheel */}
-        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
-          <CardHeader className="p-5">
-            <CardTitle className="flex items-center gap-2 text-sm text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
-              <Dice6 className="h-4 w-4 text-pine" />
-              Random điểm đến
-            </CardTitle>
-            <CardDescription className="text-xs">Quay ngẫu nhiên theo thời tiết hôm nay.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 p-5 pt-0">
-            <div className="flex h-12 items-center justify-center rounded-2xl border border-white/35 bg-white/55 px-3 font-medium text-[#4A4A4A]">
-              {isSpinning ? (
-                <span className="animate-pulse text-xs text-pine">{spinDisplayName || '...'}</span>
-              ) : spinResult ? (
-                <span className="text-sm">{spinResult.name}</span>
-              ) : (
-                <span className="text-[11px] text-[#4A4A4A]/50">Nhấn quay để chọn ngẫu nhiên</span>
-              )}
-            </div>
-            {spinResult && !isSpinning && (
-              <button
-                type="button"
-                onClick={() => handleFocusPlaceOnMap(spinResult.id)}
-                className="w-full rounded-full border border-pine/30 bg-white/70 py-2 text-xs text-pine transition hover:bg-white"
-              >
-                Trỏ trên bản đồ
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleSpin}
-              disabled={isSpinning || pois.length === 0}
-              className="w-full rounded-full bg-pine py-3 text-xs font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-            >
-              {isSpinning ? 'Đang quay...' : '🎲 Quay ngay'}
-            </button>
-            {isRaining && (
-              <p className="text-center text-[10px] text-[#4A4A4A]/55">Ưu tiên indoor vì trời đang mưa.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Checklist must-do */}
-        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
-          <CardHeader className="p-5">
-            <CardTitle className="flex items-center gap-2 text-sm text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
-              <CheckCircle2 className="h-4 w-4 text-pine" />
-              Must-do Đà Lạt
-            </CardTitle>
-            <CardDescription className="text-xs">{checkedItems.size}/{DALAT_CHECKLIST.length} trải nghiệm đã đánh dấu</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 p-5 pt-0">
-            <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-mist/80">
-              <div
-                className="h-full rounded-full bg-pine transition-all duration-500"
-                style={{ width: `${(checkedItems.size / DALAT_CHECKLIST.length) * 100}%` }}
-              />
-            </div>
-            {DALAT_CHECKLIST.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleToggleChecklist(item.id)}
-                className="flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left text-xs text-[#4A4A4A]/85 transition hover:bg-white/60"
-              >
-                {checkedItems.has(item.id) ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-pine" />
-                ) : (
-                  <Circle className="h-4 w-4 shrink-0 text-[#4A4A4A]/30" />
-                )}
-                <span className={checkedItems.has(item.id) ? 'line-through opacity-50' : ''}>{item.label}</span>
-              </button>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Packing gợi ý */}
-        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
-          <CardHeader className="p-5">
-            <CardTitle className="flex items-center gap-2 text-sm text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
-              <Backpack className="h-4 w-4 text-pine" />
-              Gợi ý đồ mang
-            </CardTitle>
-            <CardDescription className="text-xs">Dựa trên dự báo thời tiết chuyến đi.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 p-5 pt-0">
-            {weatherInsight.avgRain >= 40 && (
-              <div className="mb-2 rounded-xl bg-rose/20 px-3 py-2 text-[11px] text-[#4A4A4A]/80">
-                ☔ Khả năng mưa {weatherInsight.avgRain}% — chuẩn bị đồ chống nước.
-              </div>
-            )}
-            {packingItems.map((item) => (
-              <div key={item.id} className="flex items-center gap-2.5 rounded-xl border border-white/35 bg-white/55 px-3 py-2 text-xs text-[#4A4A4A]/85">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-pine" />
-                {item.label}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Mood board */}
-        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
-          <CardHeader className="p-5">
-            <CardTitle className="flex items-center gap-2 text-sm text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
-              <Coffee className="h-4 w-4 text-pine" />
-              Mood chuyến đi
-            </CardTitle>
-            <CardDescription className="text-xs">Chọn mood để lọc địa điểm phù hợp.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 p-5 pt-0">
-            {(Object.entries(MOOD_CONFIG) as [TripMood, (typeof MOOD_CONFIG)[TripMood]][]).map(([mood, config]) => (
-              <button
-                key={mood}
-                type="button"
-                onClick={() => setSelectedMood((previous) => (previous === mood ? null : mood))}
-                className={`w-full rounded-2xl border px-3 py-3 text-left text-xs transition ${
-                  selectedMood === mood
-                    ? 'border-pine/50 bg-pine/10 text-pine ring-1 ring-pine/30'
-                    : 'border-white/35 bg-white/55 text-[#4A4A4A]/85 hover:bg-white/75'
-                }`}
-              >
-                <span className="font-medium">{config.emoji} {mood.charAt(0).toUpperCase() + mood.slice(1)}</span>
-                <p className="mt-0.5 opacity-70">{config.desc}</p>
-              </button>
-            ))}
-            {selectedMood && moodFilteredPois.length > 0 && (
-              <p className="text-center text-[10px] text-pine">
-                {moodFilteredPois.length} điểm phù hợp mood <strong>{selectedMood}</strong>.
-              </p>
-            )}
-          </CardContent>
-        </Card>
       </section>
 
       <div className="relative grid grid-cols-1 gap-6 sm:gap-8 xl:grid-cols-3 xl:gap-10">

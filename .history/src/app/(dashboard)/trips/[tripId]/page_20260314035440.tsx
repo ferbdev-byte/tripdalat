@@ -584,7 +584,7 @@ export default function TripDashboardPage({ params }: PageProps) {
             <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-mist/80">
               <div
                 className="h-full rounded-full bg-pine transition-all duration-500"
-                style={{ width: `${(checkedItems.size / DALAT_CHECKLIST.length) * 100}%` }}
+                style={{ width: `${DALAT_CHECKLIST.length === 0 ? 0 : (checkedItems.size / DALAT_CHECKLIST.length) * 100}%` }}
               />
             </div>
             {DALAT_CHECKLIST.map((item) => (
