@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Backpack, BrainCircuit, CheckCircle2, Circle, CloudDrizzle, Code2, Coffee, Compass, Dice6, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella } from 'lucide-react';
+import { Backpack, BrainCircuit, Cat, CheckCircle2, Circle, CloudDrizzle, Code2, Coffee, Compass, Dice6, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Toaster, toast } from 'sonner';
@@ -65,6 +65,7 @@ type NewStopForm = {
 
 type FocusMode = 'all' | 'risky' | 'indoor';
 type TripMood = 'lãng mạn' | 'phiêu lưu' | 'chill';
+type ReminderPeriod = 'sáng' | 'trưa' | 'tối';
 
 const DALAT_CHECKLIST = [
   { id: 'cl-1', label: 'Cà phê sáng trong sương mù' },
@@ -81,6 +82,62 @@ const MOOD_CONFIG: Record<TripMood, { emoji: string; desc: string; categories: P
   'lãng mạn': { emoji: '🌸', desc: 'Cafe, góc nhỏ, hoa và sương chiều', categories: ['cafe', 'sightseeing'] },
   'phiêu lưu': { emoji: '⛰️', desc: 'Đồi núi, track, bình minh săn mây', categories: ['sightseeing'] },
   'chill': { emoji: '☕', desc: 'Đọc sách, cà phê, không có kế hoạch', categories: ['cafe', 'food'] },
+};
+
+const REMINDER_MESSAGES: Record<ReminderPeriod, string[]> = {
+  sáng: [
+    'Sáng nay trời lạnh, bé nhớ khoác áo ấm rồi anh và bé hãy ra đường nha.',
+    'Anh nhắc bé mang khẩu trang và khăn mỏng để đỡ lạnh gió sớm nhé.',
+    'Trước khi đi, bé xem dự báo mưa cùng anh để anh và bé chọn lịch cho hợp nha.',
+    'Bé nhớ ăn nhẹ trước khi ra ngoài để đi dốc không bị mệt nha.',
+    'Bé kiểm tra pin điện thoại và sạc dự phòng giúp anh nha, lỡ cảnh đẹp là chụp liền.',
+    'Sáng Đà Lạt sương dày, anh và bé đi chậm một chút cho an toàn nha.',
+    'Nếu đi săn mây, bé nhớ mang giày bám tốt để không trơn trượt nha.',
+    'Anh muốn bé luôn ấm, nên bé nhớ đem áo khoác dày hơn một chút nhé.',
+    'Trước khi nổ máy, anh và bé kiểm tra phanh và xăng để yên tâm cả buổi sáng nha.',
+    'Bé ra ngoài nhớ mang theo nước ấm để giữ cổ họng đỡ lạnh nha.',
+  ],
+  trưa: [
+    'Trưa rồi nhưng gió vẫn lạnh, bé nhớ mang áo khoác mỏng theo nha.',
+    'Anh thương bé nên nhắc nè: ra đường nhớ bôi kem chống nắng nhẹ cho da nhé.',
+    'Anh và bé đi ăn trưa nhớ xem review trước và hỏi giá trước cho chắc nha.',
+    'Nếu thấy trời chuyển mây, bé mang áo mưa gọn để anh và bé không bị ướt nhé.',
+    'Đi giữa trưa bé nhớ uống đủ nước, đừng để mệt rồi xuống mood nha.',
+    'Anh và bé chọn quán thoáng và sạch để bé ăn ngon miệng hơn nha.',
+    'Anh nhắc bé giữ túi xách gọn bên người khi đi chợ đông nhé.',
+    'Đi dốc buổi trưa nắng gắt, bé chạy đều ga và giữ khoảng cách cho an toàn nha.',
+    'Trưa nay nếu mệt, anh và bé nghỉ cà phê một chút rồi đi tiếp cho khỏe nha.',
+    'Ra ngoài bé nhớ đội nón nhẹ, vừa xinh vừa đỡ nắng nha.',
+  ],
+  tối: [
+    'Tối xuống lạnh nhanh lắm, bé nhớ mặc ấm trước khi anh và bé đi chơi nha.',
+    'Đi chợ đêm bé nhớ hỏi giá trước để buổi tối của anh và bé luôn vui nhé.',
+    'Anh nhắc bé đừng đi sát mép hồ buổi tối, anh và bé đi đoạn sáng đèn thôi nha.',
+    'Nếu chạy xe tối, bé nhớ kiểm tra đèn xe cùng anh trước khi đi nhé.',
+    'Tối Đà Lạt dễ sương mù, anh và bé đi chậm và ôm cua nhẹ cho an toàn nha.',
+    'Đi ăn tối xong bé nhớ mang khăn choàng lại, kẻo gió lạnh làm bé mệt nha.',
+    'Anh muốn bé về khách sạn sớm hơn một chút nếu trời quá lạnh nhé.',
+    'Lúc đông người, bé giữ điện thoại và ví ở ngăn trước cho chắc nha.',
+    'Nếu thấy mưa lất phất, anh và bé ưu tiên quán gần chỗ ở để bé đỡ vất vả nha.',
+    'Tối nay anh và bé đi nhẹ nhàng thôi, an toàn của bé là ưu tiên số một của anh.',
+  ],
+};
+
+const getReminderByTime = (date = new Date()) => {
+  const hour = date.getHours();
+  const period: ReminderPeriod = hour >= 5 && hour < 11 ? 'sáng' : hour >= 11 && hour < 16 ? 'trưa' : 'tối';
+  const pool = REMINDER_MESSAGES[period];
+  const message = pool[Math.floor(Math.random() * pool.length)];
+
+  return {
+    period,
+    message,
+  };
+};
+
+const DEFAULT_CAT_REMINDER = {
+  period: 'sáng' as ReminderPeriod,
+  message: 'Sáng nay trời lạnh, bé nhớ khoác áo ấm rồi anh và bé hãy ra đường nha.',
 };
 
 const toHourKey = (timeValue: string | null) => {
@@ -106,6 +163,8 @@ export default function TripDashboardPage({ params }: PageProps) {
   const [spinResult, setSpinResult] = useState<Poi | null>(null);
   const [spinDisplayName, setSpinDisplayName] = useState('');
   const [selectedMood, setSelectedMood] = useState<TripMood | null>(null);
+  const [catReminder, setCatReminder] = useState(DEFAULT_CAT_REMINDER);
+  const [isCatReminderOpen, setIsCatReminderOpen] = useState(false);
   const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [newStop, setNewStop] = useState<NewStopForm>({
     placeName: '',
@@ -472,6 +531,38 @@ export default function TripDashboardPage({ params }: PageProps) {
     const cats = MOOD_CONFIG[selectedMood].categories as string[];
     return pois.filter((p) => cats.includes(p.category));
   }, [selectedMood, pois]);
+
+  const triggerCatReminder = useCallback(() => {
+    setCatReminder(getReminderByTime());
+    setIsCatReminderOpen(true);
+  }, []);
+
+  useEffect(() => {
+    const firstReminderTimeout = window.setTimeout(() => {
+      triggerCatReminder();
+    }, 1400);
+
+    const reminderInterval = window.setInterval(() => {
+      triggerCatReminder();
+    }, 10 * 60 * 1000);
+
+    return () => {
+      window.clearTimeout(firstReminderTimeout);
+      window.clearInterval(reminderInterval);
+    };
+  }, [triggerCatReminder]);
+
+  useEffect(() => {
+    if (!isCatReminderOpen) return;
+
+    const rotateReminderInterval = window.setInterval(() => {
+      setCatReminder(getReminderByTime());
+    }, 15 * 1000);
+
+    return () => {
+      window.clearInterval(rotateReminderInterval);
+    };
+  }, [isCatReminderOpen]);
 
   return (
     <main className="relative min-h-screen space-y-6 overflow-hidden bg-[#FDFCFB] p-4 pb-28 sm:space-y-8 sm:p-6 md:space-y-10 md:p-10">
@@ -860,7 +951,13 @@ export default function TripDashboardPage({ params }: PageProps) {
                     {index < filteredItinerary.length - 1 && (
                       <span className="absolute left-3 top-7 h-[calc(100%+1.5rem)] w-px border-l border-dashed border-[#869484]/35" />
                     )}
-                    <span className="absolute left-0 top-1.5 h-6 w-6 rounded-full border border-[#869484]/30 bg-[#869484]/15 backdrop-blur-sm" />
+                    <span
+                      className={`absolute left-0 top-1.5 h-6 w-6 rounded-full border backdrop-blur-sm transition-all duration-300 ${
+                        selectedPoiId === item.place?.id
+                          ? 'border-pine/70 bg-pine/75 ring-4 ring-pine/25 shadow-[0_0_0_1px_rgba(255,255,255,0.7)]'
+                          : 'border-[#869484]/30 bg-[#869484]/15'
+                      }`}
+                    />
 
                     <div className={`rounded-dalat border bg-white/55 p-4 sm:p-6 shadow-[0_10px_26px_rgba(74,74,74,0.09)] backdrop-blur-md ${selectedPoiId === item.place?.id ? 'border-pine/50 ring-1 ring-pine/40' : 'border-white/25'}`}>
                       <p className="text-xs tracking-wide text-[#869484]">
@@ -1033,6 +1130,33 @@ export default function TripDashboardPage({ params }: PageProps) {
           </linearGradient>
         </defs>
       </svg>
+
+      <div
+        className={`fixed right-4 z-50 w-[min(21rem,calc(100vw-2rem))] transition-all duration-500 sm:right-6 ${
+          isCatReminderOpen ? 'bottom-24 translate-y-0 opacity-100 sm:bottom-6' : 'pointer-events-none bottom-20 translate-y-4 opacity-0 sm:bottom-4'
+        }`}
+      >
+        <div className="rounded-dalat border border-white/30 bg-white/85 p-3 shadow-[0_16px_36px_rgba(74,74,74,0.15)] backdrop-blur-xl">
+          <div className="flex items-start justify-between gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-pine/25 bg-white/80 px-3 py-1 text-[11px] text-pine">
+              <Cat className="h-3.5 w-3.5" />
+              Nhắc nhở {catReminder.period}
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsCatReminderOpen(false)}
+              className="rounded-full border border-white/40 bg-white/70 p-1 text-[#4A4A4A]/70 transition hover:bg-white"
+              aria-label="Đóng nhắc nhở"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <p className="mt-2 text-sm text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
+            Quyên hường ơi
+          </p>
+          <p className="mt-1 text-sm text-[#4A4A4A]/85">{catReminder.message}</p>
+        </div>
+      </div>
 
       <div className="fixed inset-x-4 bottom-4 z-40 flex items-center justify-between gap-2 rounded-full border border-white/25 bg-white/75 p-2 shadow-[0_14px_30px_rgba(74,74,74,0.14)] backdrop-blur-xl xl:hidden">
         <button
