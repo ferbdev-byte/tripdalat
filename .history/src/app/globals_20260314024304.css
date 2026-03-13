@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-[#FDFCFB] text-[#4A4A4A] antialiased;
+  font-family: var(--font-body), 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at 10% 15%, rgba(212, 165, 165, 0.18), transparent 34%),
+    radial-gradient(circle at 82% 12%, rgba(134, 148, 132, 0.14), transparent 28%),
+    radial-gradient(circle at 50% 100%, rgba(229, 231, 233, 0.58), transparent 36%);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading), 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
