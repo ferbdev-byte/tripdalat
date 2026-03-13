@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { AlertTriangle, ChevronDown, Coffee, Dices, MapPin, MapPinned, Sunrise } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../../components/ui/card';
 import { getTripById } from '../../../../../data/mockData';
 
@@ -596,7 +596,7 @@ function MenuColumn({
   selectedSpotId: string | null;
   onSelectSpot: (spotId: string) => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <Card className="h-full rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
@@ -619,23 +619,29 @@ function MenuColumn({
       </CardHeader>
       {isExpanded && (
         <CardContent className="space-y-3 p-5 pt-0 sm:p-6 sm:pt-0">
-          {spots.map((spot) => (
-            <article
-              key={spot.id}
-              onClick={() => onSelectSpot(spot.id)}
-              className={`cursor-pointer rounded-2xl border bg-white/65 p-4 transition ${selectedSpotId === spot.id ? 'border-pine/60 ring-1 ring-pine/40' : 'border-white/35 hover:border-pine/35'}`}
-            >
-              <h3 className="text-base text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
-                {spot.name}
-              </h3>
-              <p className="mt-1 text-sm text-[#4A4A4A]/80">{spot.specialty}</p>
-              <p className="mt-2 inline-flex items-center gap-1 text-xs text-pine">
-                <MapPin className="h-3.5 w-3.5" />
-                {spot.address}
-              </p>
-              <p className="mt-1 text-xs text-[#4A4A4A]/65">Giờ mở cửa: {spot.openHours}</p>
-            </article>
-          ))}
+          {spots.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-pine/25 bg-white/50 p-4 text-xs text-[#4A4A4A]/70">
+              Chưa có quán phù hợp với bộ lọc hiện tại.
+            </div>
+          ) : (
+            spots.map((spot) => (
+              <article
+                key={spot.id}
+                onClick={() => onSelectSpot(spot.id)}
+                className={`cursor-pointer rounded-2xl border bg-white/65 p-4 transition ${selectedSpotId === spot.id ? 'border-pine/60 ring-1 ring-pine/40' : 'border-white/35 hover:border-pine/35'}`}
+              >
+                <h3 className="text-base text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
+                  {spot.name}
+                </h3>
+                <p className="mt-1 text-sm text-[#4A4A4A]/80">{spot.specialty}</p>
+                <p className="mt-2 inline-flex items-center gap-1 text-xs text-pine">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {spot.address}
+                </p>
+                <p className="mt-1 text-xs text-[#4A4A4A]/65">Giờ mở cửa: {spot.openHours}</p>
+              </article>
+            ))
+          )}
         </CardContent>
       )}
     </Card>
@@ -646,6 +652,8 @@ export default function FoodMenuPage({ params }: PageProps) {
   const [tripId, setTripId] = useState('');
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(breakfastSpots[0]?.id ?? null);
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [indoorOnly, setIndoorOnly] = useState(false);
 
   useEffect(() => {
     params.then((value) => {
@@ -671,20 +679,55 @@ export default function FoodMenuPage({ params }: PageProps) {
     return [...randomSpots, ...curatedDinnerSpots];
   }, []);
 
+  const applyFilters = useCallback(
+    (spots: FoodSpot[]) => {
+      const normalizedQuery = searchQuery.trim().toLowerCase();
+
+      return spots.filter((spot) => {
+        const matchesIndoor = indoorOnly ? spot.isIndoor : true;
+        if (!matchesIndoor) return false;
+
+        if (!normalizedQuery) return true;
+        return [spot.name, spot.specialty, spot.address, spot.openHours].some((value) => value.toLowerCase().includes(normalizedQuery));
+      });
+    },
+    [indoorOnly, searchQuery],
+  );
+
+  const filteredDayMealSpots = useMemo(() => applyFilters(dayMealSpots), [applyFilters, dayMealSpots]);
+  const filteredCafeSpots = useMemo(() => applyFilters(allCafeSpots), [allCafeSpots, applyFilters]);
+  const filteredDinnerSpots = useMemo(() => applyFilters(dinnerSpots), [applyFilters, dinnerSpots]);
+
+  const visibleSpots = useMemo(() => {
+    return [...filteredDayMealSpots, ...filteredCafeSpots, ...filteredDinnerSpots];
+  }, [filteredCafeSpots, filteredDayMealSpots, filteredDinnerSpots]);
+
   const mapPoints = useMemo(() => {
-    return allSpots.map((spot) => ({
+    return visibleSpots.map((spot) => ({
       id: spot.id,
       name: spot.name,
       latitude: spot.latitude,
       longitude: spot.longitude,
       is_indoor: spot.isIndoor,
     }));
-  }, [allSpots]);
+  }, [visibleSpots]);
 
   const selectedSpot = useMemo(() => {
     if (!selectedSpotId) return null;
-    return allSpots.find((spot) => spot.id === selectedSpotId) ?? null;
-  }, [allSpots, selectedSpotId]);
+    return visibleSpots.find((spot) => spot.id === selectedSpotId) ?? null;
+  }, [selectedSpotId, visibleSpots]);
+
+  useEffect(() => {
+    if (visibleSpots.length === 0) {
+      setSelectedSpotId(null);
+      return;
+    }
+
+    const isSelectedVisible = selectedSpotId ? visibleSpots.some((spot) => spot.id === selectedSpotId) : false;
+    if (!isSelectedVisible) {
+      setSelectedSpotId(visibleSpots[0].id);
+    }
+  }, [selectedSpotId, visibleSpots]);
 
   const handleSelectSpot = (spotId: string) => {
     setSelectedSpotId(spotId);
@@ -695,6 +738,8 @@ export default function FoodMenuPage({ params }: PageProps) {
       }, 120);
     }
   };
+
+  const hasActiveFilters = searchQuery.trim().length > 0 || indoorOnly;
 
   return (
     <main className="min-h-screen bg-[#FDFCFB] px-4 py-6 sm:px-6 md:px-10 md:py-10">
@@ -710,6 +755,35 @@ export default function FoodMenuPage({ params }: PageProps) {
               Quay lại dashboard
             </Link>
           </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto]">
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Tìm quán theo tên, món, địa chỉ..."
+              className="w-full rounded-full border border-white/35 bg-white/75 px-4 py-2 text-sm text-[#4A4A4A] outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setIndoorOnly((previous) => !previous)}
+              className={`rounded-full border px-4 py-2 text-xs transition ${indoorOnly ? 'border-pine/45 bg-pine text-white' : 'border-pine/25 bg-white/70 text-pine hover:bg-white'}`}
+            >
+              {indoorOnly ? 'Đang lọc indoor' : 'Chỉ indoor'}
+            </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setIndoorOnly(false);
+                }}
+                className="rounded-full border border-white/35 bg-white/70 px-4 py-2 text-xs text-[#4A4A4A]/75 transition hover:bg-white"
+              >
+                Xóa lọc
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-[#4A4A4A]/70">Đang hiển thị {visibleSpots.length} quán phù hợp.</p>
         </div>
 
         <Card className="relative rounded-dalat border-2 border-pine/45 bg-white/65 shadow-[0_14px_36px_rgba(74,74,74,0.08)] backdrop-blur-xl ring-2 ring-pine/25 transition-all duration-500">
@@ -763,7 +837,7 @@ export default function FoodMenuPage({ params }: PageProps) {
             title="Ăn sáng & ăn trưa"
             description="Tổng hợp món sáng và trưa bạn đã lọc để dễ chọn theo giờ mở cửa."
             icon={<Sunrise className="h-5 w-5 text-pine" />}
-            spots={dayMealSpots}
+            spots={filteredDayMealSpots}
             selectedSpotId={selectedSpotId}
             onSelectSpot={handleSelectSpot}
           />
@@ -771,7 +845,7 @@ export default function FoodMenuPage({ params }: PageProps) {
             title="Cafe"
             description="Danh sách quán cà phê view đẹp, chill để check-in và nghỉ chân."
             icon={<Coffee className="h-5 w-5 text-pine" />}
-            spots={allCafeSpots}
+            spots={filteredCafeSpots}
             selectedSpotId={selectedSpotId}
             onSelectSpot={handleSelectSpot}
           />
@@ -779,7 +853,7 @@ export default function FoodMenuPage({ params }: PageProps) {
             title="Ăn tối"
             description="Lẩu và đồ nướng buổi tối để chốt lịch ăn sau khi đi chơi."
             icon={<Dices className="h-5 w-5 text-pine" />}
-            spots={dinnerSpots}
+            spots={filteredDinnerSpots}
             selectedSpotId={selectedSpotId}
             onSelectSpot={handleSelectSpot}
           />
@@ -794,12 +868,16 @@ export default function FoodMenuPage({ params }: PageProps) {
             <CardDescription>Bấm vào một quán ở danh sách bên trên, map sẽ tự trỏ đến vị trí quán đó.</CardDescription>
           </CardHeader>
           <CardContent className="p-5 pt-0 sm:p-6 sm:pt-0">
-            {selectedSpot && (
+            {selectedSpot ? (
               <div className="mb-3 rounded-2xl border border-white/35 bg-white/65 p-3 text-xs text-[#4A4A4A]/80">
                 <p>
                   Đang chọn: <strong>{selectedSpot.name}</strong>
                 </p>
                 <p className="mt-1">{selectedSpot.address}</p>
+              </div>
+            ) : (
+              <div className="mb-3 rounded-2xl border border-dashed border-pine/25 bg-white/55 p-3 text-xs text-[#4A4A4A]/75">
+                Không có quán phù hợp để hiển thị trên bản đồ. Thử xóa bộ lọc để xem lại toàn bộ quán.
               </div>
             )}
 

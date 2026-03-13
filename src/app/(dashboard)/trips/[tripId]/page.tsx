@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Backpack, BrainCircuit, Cat, CheckCircle2, Circle, CloudDrizzle, Code2, Coffee, Compass, Dice6, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella, X } from 'lucide-react';
+import { AlertTriangle, Backpack, BrainCircuit, Cat, CheckCircle2, Circle, CloudDrizzle, Code2, Coffee, Compass, Dice6, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Toaster, toast } from 'sonner';
@@ -272,6 +272,33 @@ export default function TripDashboardPage({ params }: PageProps) {
       comfortScore,
     };
   }, [hourlyRain, itinerary]);
+
+  const weatherAlert = useMemo(() => {
+    if (weatherInsight.avgRain >= 70 || weatherInsight.riskyCount >= 2) {
+      return {
+        level: 'high' as const,
+        label: 'Cao',
+        message: 'Khả năng mưa cao, nên ưu tiên điểm indoor và hạn chế đi dốc xa.',
+        hint: 'Nhớ mang áo mưa gọn + áo khoác ấm trước khi ra ngoài.',
+      };
+    }
+
+    if (weatherInsight.avgRain >= 45 || weatherInsight.riskyCount >= 1) {
+      return {
+        level: 'medium' as const,
+        label: 'Trung bình',
+        message: 'Có khả năng mưa rải rác trong ngày, nên linh hoạt giữa indoor/outdoor.',
+        hint: 'Nên kiểm tra lại khung giờ mưa trước mỗi chặng di chuyển.',
+      };
+    }
+
+    return {
+      level: 'low' as const,
+      label: 'Thấp',
+      message: 'Thời tiết khá ổn định, phù hợp đi ngoài trời theo kế hoạch.',
+      hint: 'Vẫn nên mang áo khoác mỏng vì Đà Lạt có thể lạnh đột ngột về chiều tối.',
+    };
+  }, [weatherInsight.avgRain, weatherInsight.riskyCount]);
 
   const filteredItinerary = useMemo(() => {
     if (focusMode === 'all') return itinerary;
@@ -591,6 +618,27 @@ export default function TripDashboardPage({ params }: PageProps) {
           </div>
         )}
       </header>
+
+      <section
+        className={`animate-fade-up rounded-dalat border p-4 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl transition-all duration-700 sm:p-5 [animation-delay:120ms] ${
+          weatherAlert.level === 'high'
+            ? 'border-rose/40 bg-rose/15'
+            : weatherAlert.level === 'medium'
+              ? 'border-pine/35 bg-white/60'
+              : 'border-white/30 bg-white/55'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <AlertTriangle className={`mt-0.5 h-5 w-5 ${weatherAlert.level === 'high' ? 'text-rose' : 'text-pine'}`} />
+          <div>
+            <p className="inline-flex rounded-full border border-white/40 bg-white/70 px-3 py-1 text-[11px] uppercase tracking-wide text-[#4A4A4A]/80">
+              Cảnh báo thời tiết · {weatherAlert.label}
+            </p>
+            <p className="mt-2 text-sm text-[#4A4A4A] sm:text-[15px]">{weatherAlert.message}</p>
+            <p className="mt-1 text-xs text-[#4A4A4A]/70">{weatherAlert.hint}</p>
+          </div>
+        </div>
+      </section>
 
       <section className="relative grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
         <div className="animate-fade-up rounded-dalat border border-white/30 bg-white/55 p-5 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl [animation-delay:140ms]">
