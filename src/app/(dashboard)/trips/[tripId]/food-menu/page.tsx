@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ChevronDown, Coffee, Dices, MapPin, MapPinned, Sunrise } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Coffee, Dices, MapPin, MapPinned, Sunrise } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../../components/ui/card';
 import { getTripById } from '../../../../../data/mockData';
@@ -293,6 +293,294 @@ const randomSpots: FoodSpot[] = [
   },
 ];
 
+const fallbackCenter = {
+  latitude: 11.9408,
+  longitude: 108.4381,
+};
+
+const curatedCafeSpots: FoodSpot[] = [
+  {
+    id: 'cf-curated-1',
+    name: 'OHMI cafe',
+    specialty: 'Cafe view đẹp, chill',
+    address: '35/6 Yersin',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'cf-curated-2',
+    name: 'Tiệm Cà Phê Túi Mơ To',
+    specialty: 'Cafe view đẹp, chill',
+    address: 'Hẻm 31 Sào Nam',
+    openHours: 'Theo quán',
+    latitude: 11.9666,
+    longitude: 108.4552,
+    isIndoor: true,
+  },
+  {
+    id: 'cf-curated-3',
+    name: 'Gạch since 1988',
+    specialty: 'Cafe view đẹp, chill',
+    address: '41 Sương Nguyệt Ánh',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'cf-curated-4',
+    name: '3PM',
+    specialty: 'Cafe view đẹp, chill',
+    address: '10 Nguyễn Hữu Cảnh',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'cf-curated-5',
+    name: 'Air Dream Coffee',
+    specialty: 'Cafe view đẹp, chill',
+    address: 'Đống Đa',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'cf-curated-6',
+    name: 'Đương cf',
+    specialty: 'Cafe view đẹp, chill',
+    address: '152/2 Phạm Ngọc Thạch',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'cf-curated-7',
+    name: 'Nook Coffee',
+    specialty: 'Cafe view đẹp, chill',
+    address: 'Đồi Dã Chiến',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: false,
+  },
+  {
+    id: 'cf-curated-8',
+    name: 'Kong Coffee',
+    specialty: 'Cafe view đẹp, chill',
+    address: 'Đồi Dã Chiến',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: false,
+  },
+  {
+    id: 'cf-curated-9',
+    name: 'Cheo Veo',
+    specialty: 'Cafe view đẹp, chill',
+    address: 'Đồi Dã Chiến',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: false,
+  },
+  {
+    id: 'cf-curated-10',
+    name: 'Tiệm Cà Phê Bình Minh Ơi',
+    specialty: 'Cafe ngắm bình minh',
+    address: '89 Hoàng Hoa Thám',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'cf-curated-11',
+    name: 'Wilder-nest',
+    specialty: 'Cafe view rừng thông',
+    address: 'Tà Nung',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: false,
+  },
+  {
+    id: 'cf-curated-12',
+    name: 'Tiệm Cf Hoàng Hôn Chiều',
+    specialty: 'Cafe ngắm hoàng hôn',
+    address: 'Dốc số 9 Trại Mát',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+];
+
+const curatedDayMealSpots: FoodSpot[] = [
+  {
+    id: 'day-meal-1',
+    name: 'Bánh căn Lệ',
+    specialty: 'Bánh căn',
+    address: '27/44 Yersin',
+    openHours: '06:30 - 15:30',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'day-meal-2',
+    name: 'Mì Quảng Hội An',
+    specialty: 'Mì Quảng',
+    address: '14 Yersin',
+    openHours: '06:30 - 12:00',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'day-meal-3',
+    name: 'Bánh mì xíu mại',
+    specialty: 'Bánh mì xíu mại',
+    address: '01 Thông Thiên Học',
+    openHours: '06:30 - 10:00',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'day-meal-4',
+    name: 'Phở Gà A Lữ',
+    specialty: 'Phở gà',
+    address: '08 Mạc Đĩnh Chi',
+    openHours: '06:30 - 22:00',
+    latitude: 11.9402,
+    longitude: 108.4462,
+    isIndoor: true,
+  },
+  {
+    id: 'day-meal-5',
+    name: 'Cơm Linh',
+    specialty: 'Cơm niêu / món gia đình',
+    address: '23 Sương Nguyệt Ánh',
+    openHours: '10:30 - 20:00',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'day-meal-6',
+    name: 'Cơm tấm Thu',
+    specialty: 'Cơm tấm',
+    address: '19 Nguyễn Trãi',
+    openHours: '10:00 - 15:00',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+];
+
+const curatedDinnerSpots: FoodSpot[] = [
+  {
+    id: 'dinner-1',
+    name: 'Lẩu Gà Lá É',
+    specialty: 'Lẩu gà lá é',
+    address: '64 Phan Chu Trinh',
+    openHours: '07:00 - 22:30',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'dinner-2',
+    name: 'Lẩu Bò Hạnh',
+    specialty: 'Lẩu bò',
+    address: '167 Bùi Thị Xuân',
+    openHours: '11:00 - 23:00',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'dinner-3',
+    name: 'Fungi Chingu',
+    specialty: 'Đồ nướng Hàn Quốc',
+    address: '01 Nguyễn Thị Minh Khai',
+    openHours: 'Theo quán',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+  {
+    id: 'dinner-4',
+    name: 'Tiệm Nướng Thương Nhớ',
+    specialty: 'Nướng tối',
+    address: '08 Mạc Đĩnh Chi',
+    openHours: '11:00 - 21:30',
+    latitude: 11.9402,
+    longitude: 108.4462,
+    isIndoor: true,
+  },
+  {
+    id: 'dinner-5',
+    name: 'Say Xưa',
+    specialty: 'Ăn tối / khuya',
+    address: '68 Phan Đình Phùng',
+    openHours: '12:00 - 02:00',
+    latitude: fallbackCenter.latitude,
+    longitude: fallbackCenter.longitude,
+    isIndoor: true,
+  },
+];
+
+const travelNotes = [
+  {
+    id: 'note-1',
+    title: 'Chợ đêm',
+    points: ['BẮT BUỘC hỏi giá trước khi ăn.', 'Ăn dâu lắc nên chọn kỹ, tránh dâu dập.'],
+  },
+  {
+    id: 'note-2',
+    title: 'Quán ăn',
+    points: [
+      'Lên Google Maps đọc kỹ review rồi mới tới ăn, tránh bị hét giá.',
+      'Fungi Chingu - 1 Nguyễn Thị Minh Khai.',
+      'Hoa Bánh Căn - 12 Phan Đình Phùng.',
+      'Lẩu gà lá é - 2C Bùi Thị Xuân.',
+      'Cơm Linh - 23 Sương Nguyệt Anh.',
+      'Mậu Dịch - 28B Trần Hưng Đạo.',
+      'Túi Mơ To - hẻm 31 Sào Nam.',
+    ],
+  },
+  {
+    id: 'note-3',
+    title: 'Dốc ở Đà Lạt',
+    points: ['Bèo nào yếu nghề thì đừng cố đi dốc, đa phần dốc cao.', 'Đi đồi nên thuê xe số, tránh đi ngày mưa gió để an toàn.'],
+  },
+  {
+    id: 'note-4',
+    title: 'Thuê xe',
+    points: [
+      'Nhớ đem giấy tờ mới thuê xe được (Căn cước, bằng lái).',
+      'Giá thuê tầm 80-100k/ngày, cao hơn thì nên khảo thêm chỗ khác.',
+    ],
+  },
+  {
+    id: 'note-5',
+    title: 'Hồ Xuân Hương',
+    points: ['KHÔNG ăn các quán gần bờ hồ vì thường giá cao.', 'KHÔNG đi sát mép hồ, nhất là tầm chập tối.'],
+  },
+  {
+    id: 'note-6',
+    title: 'Dâu tây',
+    points: ['KHÔNG đi theo cò dâu.', 'Mua dâu nên ghé đường Nguyễn Công Trứ để được chọn từng trái.'],
+  },
+];
+
 function MenuColumn({
   title,
   description,
@@ -357,6 +645,7 @@ function MenuColumn({
 export default function FoodMenuPage({ params }: PageProps) {
   const [tripId, setTripId] = useState('');
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(breakfastSpots[0]?.id ?? null);
+  const [isNotesExpanded, setIsNotesExpanded] = useState(true);
 
   useEffect(() => {
     params.then((value) => {
@@ -367,7 +656,19 @@ export default function FoodMenuPage({ params }: PageProps) {
   const trip = getTripById(tripId || 'dalat-2026').trip;
 
   const allSpots = useMemo(() => {
-    return [...breakfastSpots, ...cafeSpots, ...randomSpots];
+    return [...breakfastSpots, ...curatedDayMealSpots, ...cafeSpots, ...curatedCafeSpots, ...randomSpots, ...curatedDinnerSpots];
+  }, []);
+
+  const dayMealSpots = useMemo(() => {
+    return [...breakfastSpots, ...curatedDayMealSpots];
+  }, []);
+
+  const allCafeSpots = useMemo(() => {
+    return [...cafeSpots, ...curatedCafeSpots];
+  }, []);
+
+  const dinnerSpots = useMemo(() => {
+    return [...randomSpots, ...curatedDinnerSpots];
   }, []);
 
   const mapPoints = useMemo(() => {
@@ -403,7 +704,7 @@ export default function FoodMenuPage({ params }: PageProps) {
           <h1 className="mt-3 text-3xl text-[#4A4A4A] sm:text-4xl" style={{ fontFamily: 'var(--font-heading), serif' }}>
             Layout menu đồ ăn cho {trip.name}
           </h1>
-          <p className="mt-2 text-sm text-[#4A4A4A]/75">3 cột theo đúng style web: đồ ăn sáng, cafe và quán random để bạn chọn nhanh.</p>
+          <p className="mt-2 text-sm text-[#4A4A4A]/75">3 cột theo đúng style web: ăn sáng/trưa, cafe và ăn tối để bạn chọn nhanh.</p>
           <div className="mt-4">
             <Link href={`/trips/${trip.id}`} className="inline-flex rounded-full border border-pine/30 bg-white/70 px-4 py-2 text-xs text-pine transition hover:bg-white">
               Quay lại dashboard
@@ -411,28 +712,74 @@ export default function FoodMenuPage({ params }: PageProps) {
           </div>
         </div>
 
+        <Card className="relative rounded-dalat border-2 border-pine/45 bg-white/65 shadow-[0_14px_36px_rgba(74,74,74,0.08)] backdrop-blur-xl ring-2 ring-pine/25 transition-all duration-500">
+          <CardHeader className="p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-2">
+                <p className="inline-flex w-fit items-center gap-2 rounded-full border border-pine/30 bg-white/80 px-3 py-1 text-[11px] uppercase tracking-wide text-pine">
+                  <span className="h-1.5 w-1.5 rounded-full bg-pine animate-pulse" />
+                  Mục quan trọng
+                </p>
+                <CardTitle className="inline-flex items-center gap-2 text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
+                  <AlertTriangle className="h-5 w-5 text-pine" />
+                  Lưu ý · Kinh nghiệm du lịch Đà Lạt
+                </CardTitle>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsNotesExpanded((previous) => !previous)}
+                className="inline-flex items-center gap-1 rounded-full border border-pine/25 bg-white/70 px-3 py-1.5 text-[11px] text-pine transition hover:bg-white"
+              >
+                {isNotesExpanded ? 'Ẩn' : 'Hiện'}
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isNotesExpanded ? '' : '-rotate-90'}`} />
+              </button>
+            </div>
+            <CardDescription>Những điểm cần nhớ để đi ăn uống, thuê xe và di chuyển an toàn hơn trong chuyến đi.</CardDescription>
+          </CardHeader>
+          <div
+            className={`overflow-hidden transition-all duration-500 ease-out ${
+              isNotesExpanded ? 'max-h-[2400px] opacity-100' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <CardContent className="space-y-4 p-5 pt-0 sm:p-6 sm:pt-0">
+              {travelNotes.map((note, index) => (
+                <article key={note.id} className="rounded-2xl border border-white/35 bg-white/70 p-4 transition-all duration-300 hover:border-pine/30 hover:bg-white/80">
+                  <h3 className="text-sm text-pine sm:text-base" style={{ fontFamily: 'var(--font-heading), serif' }}>
+                    {index + 1}. {note.title}
+                  </h3>
+                  <ul className="mt-2 space-y-1.5 text-sm text-[#4A4A4A]/85">
+                    {note.points.map((point) => (
+                      <li key={point}>• {point}</li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </CardContent>
+          </div>
+        </Card>
+
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
           <MenuColumn
-            title="Đồ ăn sáng"
-            description="Danh sách bạn gửi: đồ ăn sáng + quán ăn vặt theo lịch mở cửa."
+            title="Ăn sáng & ăn trưa"
+            description="Tổng hợp món sáng và trưa bạn đã lọc để dễ chọn theo giờ mở cửa."
             icon={<Sunrise className="h-5 w-5 text-pine" />}
-            spots={breakfastSpots}
+            spots={dayMealSpots}
             selectedSpotId={selectedSpotId}
             onSelectSpot={handleSelectSpot}
           />
           <MenuColumn
             title="Cafe"
-            description="Ưu tiên quán đẹp, chill, phù hợp check-in và ngồi lâu."
+            description="Danh sách quán cà phê view đẹp, chill để check-in và nghỉ chân."
             icon={<Coffee className="h-5 w-5 text-pine" />}
-            spots={cafeSpots}
+            spots={allCafeSpots}
             selectedSpotId={selectedSpotId}
             onSelectSpot={handleSelectSpot}
           />
           <MenuColumn
-            title="Quán random"
-            description="Gợi ý ngẫu hứng để đổi mood theo hành trình."
+            title="Ăn tối"
+            description="Lẩu và đồ nướng buổi tối để chốt lịch ăn sau khi đi chơi."
             icon={<Dices className="h-5 w-5 text-pine" />}
-            spots={randomSpots}
+            spots={dinnerSpots}
             selectedSpotId={selectedSpotId}
             onSelectSpot={handleSelectSpot}
           />

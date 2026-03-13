@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Backpack, BrainCircuit, CheckCircle2, Circle, CloudDrizzle, Coffee, Compass, Dice6, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella } from 'lucide-react';
+import { Backpack, BrainCircuit, CheckCircle2, Circle, CloudDrizzle, Code2, Coffee, Compass, Dice6, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Toaster, toast } from 'sonner';
@@ -474,7 +474,7 @@ export default function TripDashboardPage({ params }: PageProps) {
   }, [selectedMood, pois]);
 
   return (
-    <main className="relative min-h-screen space-y-6 overflow-hidden bg-[#FDFCFB] p-4 sm:space-y-8 sm:p-6 md:space-y-10 md:p-10">
+    <main className="relative min-h-screen space-y-6 overflow-hidden bg-[#FDFCFB] p-4 pb-28 sm:space-y-8 sm:p-6 md:space-y-10 md:p-10">
       <div className="pointer-events-none absolute -left-20 top-4 h-48 w-48 animate-mist rounded-full bg-rose/20 blur-3xl sm:top-10 sm:h-72 sm:w-72" />
       <div className="pointer-events-none absolute right-0 top-16 h-52 w-52 animate-mist rounded-full bg-pine/15 blur-3xl [animation-delay:1s] sm:top-28 sm:h-80 sm:w-80" />
 
@@ -1007,6 +1007,13 @@ export default function TripDashboardPage({ params }: PageProps) {
             )}
           </CardContent>
         </Card>
+
+        <div className="animate-fade-up xl:col-span-3 [animation-delay:360ms]">
+          <div className="mx-auto flex w-fit items-center justify-center gap-2 rounded-full border border-white/30 bg-white/60 px-4 py-2 text-xs text-[#4A4A4A]/75 shadow-[0_10px_24px_rgba(74,74,74,0.06)] backdrop-blur-xl">
+            <Code2 className="h-3.5 w-3.5 text-pine" />
+            <span>Author · Võ Ngọc Cường</span>
+          </div>
+        </div>
       </div>
 
       <style jsx global>{`
