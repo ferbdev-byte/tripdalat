@@ -787,20 +787,15 @@ export default function FoodMenuPage({ params }: PageProps) {
     <main className="min-h-screen bg-[#FDFCFB] px-4 py-6 sm:px-6 md:px-10 md:py-10">
       <section className="mx-auto max-w-7xl space-y-5">
         <div className="rounded-dalat border border-white/25 bg-white/50 p-5 backdrop-blur-xl sm:p-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href={`/trips/${tripId || trip.id}`}
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-pine/30 bg-white/80 px-3 py-1.5 text-xs text-pine transition hover:bg-white"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Quay lại Dashboard
-            </Link>
+          <Link
+            href={`/trips/${tripId || trip.id}`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-pine/30 bg-white/80 px-3 py-1.5 text-xs text-pine transition hover:bg-white"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Quay lại Dashboard
+          </Link>
 
-            <p className="inline-flex min-h-8 items-center rounded-full border border-pine/25 bg-white/70 px-3 py-1.5 text-xs text-pine">
-              Dalat Dream · Food Menu
-            </p>
-          </div>
-
+          <p className="inline-flex rounded-full border border-pine/25 bg-white/70 px-3 py-1 text-xs text-pine">Dalat Dream · Food Menu</p>
           <h1 className="mt-3 text-3xl text-[#4A4A4A] sm:text-4xl" style={{ fontFamily: 'var(--font-heading), serif' }}>
             Layout menu đồ ăn cho {trip.name}
           </h1>

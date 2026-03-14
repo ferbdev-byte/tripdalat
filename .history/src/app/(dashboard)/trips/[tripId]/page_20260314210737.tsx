@@ -188,6 +188,22 @@ const toHourKey = (timeValue: string | null) => {
   return timeValue.slice(0, 2);
 };
 
+const toMinutes = (timeValue: string | null) => {
+  if (!timeValue) return null;
+  const [hourText, minuteText] = timeValue.split(':');
+  const hours = Number(hourText);
+  const minutes = Number(minuteText);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return hours * 60 + minutes;
+};
+
+const fromMinutes = (minutesValue: number) => {
+  const wrapped = ((minutesValue % 1440) + 1440) % 1440;
+  const hours = Math.floor(wrapped / 60);
+  const minutes = wrapped % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
 const LOVE_TRIP_TARGET = '2026-07-06T08:00:00+07:00';
 
 const getLoveCountdown = () => {
@@ -599,6 +615,46 @@ export default function TripDashboardPage({ params }: PageProps) {
     });
   }, []);
 
+  const handleLateStart = useCallback((delayMinutes: number) => {
+    if (delayMinutes <= 0) return;
+
+    setItinerary((previous) => {
+      const nextWarnings: Record<string, string> = {};
+
+      const updated = previous.map((item) => {
+        const shiftedStartMinutes = toMinutes(item.start_time);
+        const shiftedEndMinutes = toMinutes(item.end_time);
+        const openingStartMinutes = toMinutes(item.place?.opening_hours.open ?? null);
+        const openingEndMinutes = toMinutes(item.place?.opening_hours.close ?? null);
+
+        const nextStartTime = shiftedStartMinutes === null ? item.start_time : fromMinutes(shiftedStartMinutes + delayMinutes);
+        const nextEndTime = shiftedEndMinutes === null ? item.end_time : fromMinutes(shiftedEndMinutes + delayMinutes);
+
+        if (
+          shiftedStartMinutes !== null &&
+          shiftedEndMinutes !== null &&
+          openingStartMinutes !== null &&
+          openingEndMinutes !== null
+        ) {
+          const nextStartMinutes = shiftedStartMinutes + delayMinutes;
+          const nextEndMinutes = shiftedEndMinutes + delayMinutes;
+          if (nextStartMinutes < openingStartMinutes || nextEndMinutes > openingEndMinutes) {
+            nextWarnings[item.id] = 'Quán này sẽ đóng cửa nếu mình đi trễ hơn!';
+          }
+        }
+
+        return {
+          ...item,
+          start_time: nextStartTime,
+          end_time: nextEndTime,
+        };
+      });
+
+      setLateWarningsByItemId(nextWarnings);
+      return updated;
+    });
+  }, []);
+
   const handleAddCustomStop = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -693,6 +749,17 @@ export default function TripDashboardPage({ params }: PageProps) {
     const cats = MOOD_CONFIG[selectedMood].categories as string[];
     return pois.filter((p) => cats.includes(p.category));
   }, [selectedMood, pois]);
+
+  const photoProgress = useMemo(() => {
+    const total = itinerary.length;
+    const completed = capturedPhotoItemIds.size;
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return {
+      total,
+      completed,
+      percent,
+    };
+  }, [capturedPhotoItemIds, itinerary.length]);
 
   const triggerCatReminder = useCallback(() => {
     setCatReminder(getReminderByTime());
@@ -1215,75 +1282,49 @@ export default function TripDashboardPage({ params }: PageProps) {
               <button
                 type="button"
                 onClick={() => setFocusMode('all')}
-                className={`rounded-full px-3 py-2 text-xs transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] ${focusMode === 'all' ? 'bg-pine text-white shadow-[0_8px_18px_rgba(82,112,97,0.25)]' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80 hover:bg-white/75'}`}
+                className={`rounded-full px-3 py-2 text-xs transition ${focusMode === 'all' ? 'bg-pine text-white' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80'}`}
               >
                 Tất cả
               </button>
               <button
                 type="button"
                 onClick={() => setFocusMode('risky')}
-                className={`rounded-full px-3 py-2 text-xs transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] ${focusMode === 'risky' ? 'bg-rose text-white shadow-[0_8px_18px_rgba(163,100,100,0.28)]' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80 hover:bg-white/75'}`}
+                className={`rounded-full px-3 py-2 text-xs transition ${focusMode === 'risky' ? 'bg-rose text-white' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80'}`}
               >
                 Rủi ro mưa cao
               </button>
               <button
                 type="button"
                 onClick={() => setFocusMode('indoor')}
-                className={`rounded-full px-3 py-2 text-xs transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] ${focusMode === 'indoor' ? 'bg-pine text-white shadow-[0_8px_18px_rgba(82,112,97,0.25)]' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80 hover:bg-white/75'}`}
+                className={`rounded-full px-3 py-2 text-xs transition ${focusMode === 'indoor' ? 'bg-pine text-white' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80'}`}
               >
                 Chỉ indoor
               </button>
             </div>
 
-            <AnimatePresence mode="wait" initial={false}>
-              {loading ? (
-                <motion.p
-                  key="timeline-loading"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                  className="text-sm text-[#4A4A4A]/70"
-                >
-                  Đang tải timeline...
-                </motion.p>
-              ) : filteredItinerary.length === 0 ? (
-                <motion.div
-                  key={`timeline-empty-${focusMode}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.24, ease: 'easeOut' }}
-                  className="flex min-h-56 flex-col items-center justify-center rounded-dalat border border-dashed border-pine/30 bg-white/35 p-8 text-center backdrop-blur-md transition-all duration-700"
-                >
-                  <div className="text-5xl">🐻💤</div>
-                  <p className="mt-3 text-sm font-medium text-[#4A4A4A]">Không có hoạt động phù hợp với bộ lọc hiện tại.</p>
-                  <p className="mt-1 text-xs text-[#4A4A4A]/70">Thử đổi sang “Tất cả” để xem toàn bộ timeline.</p>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key={`timeline-list-${focusMode}-${filteredItinerary.length}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.24, ease: 'easeOut' }}
-                >
-                  <ItineraryTimeline
-                    items={filteredItinerary}
-                    selectedPoiId={selectedPoiId}
-                    isRaining={isRaining}
-                    hourlyTemperatureByHour={hourlyTemperatureByHour}
-                    lateWarningsByItemId={lateWarningsByItemId}
-                    capturedPhotoItemIds={capturedPhotoItemIds}
-                    travelMinutesByItemId={travelMinutesByItemId}
-                    onSetTravelMinutes={handleSetTravelMinutes}
-                    onCapturePhoto={handleCapturePhoto}
-                    onFocusPlaceOnMap={handleFocusPlaceOnMap}
-                    onSuggestIndoorCafe={handleSuggestIndoorCafe}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {loading ? (
+              <p className="text-sm text-[#4A4A4A]/70">Đang tải timeline...</p>
+            ) : filteredItinerary.length === 0 ? (
+              <div className="flex min-h-56 flex-col items-center justify-center rounded-dalat border border-dashed border-pine/30 bg-white/35 p-8 text-center backdrop-blur-md transition-all duration-700">
+                <div className="text-5xl">🐻💤</div>
+                <p className="mt-3 text-sm font-medium text-[#4A4A4A]">Không có hoạt động phù hợp với bộ lọc hiện tại.</p>
+                <p className="mt-1 text-xs text-[#4A4A4A]/70">Thử đổi sang “Tất cả” để xem toàn bộ timeline.</p>
+              </div>
+            ) : (
+              <ItineraryTimeline
+                items={filteredItinerary}
+                selectedPoiId={selectedPoiId}
+                isRaining={isRaining}
+                hourlyTemperatureByHour={hourlyTemperatureByHour}
+                lateWarningsByItemId={lateWarningsByItemId}
+                capturedPhotoItemIds={capturedPhotoItemIds}
+                travelMinutesByItemId={travelMinutesByItemId}
+                onSetTravelMinutes={handleSetTravelMinutes}
+                onCapturePhoto={handleCapturePhoto}
+                onFocusPlaceOnMap={handleFocusPlaceOnMap}
+                onSuggestIndoorCafe={handleSuggestIndoorCafe}
+              />
+            )}
 
               <div className="animate-fade-up rounded-dalat border border-pine/25 bg-white/60 p-4 sm:p-5 text-sm text-[#4A4A4A] shadow-[0_10px_26px_rgba(74,74,74,0.07)] [animation-delay:280ms]">
               <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">

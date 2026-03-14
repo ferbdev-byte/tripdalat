@@ -188,6 +188,22 @@ const toHourKey = (timeValue: string | null) => {
   return timeValue.slice(0, 2);
 };
 
+const toMinutes = (timeValue: string | null) => {
+  if (!timeValue) return null;
+  const [hourText, minuteText] = timeValue.split(':');
+  const hours = Number(hourText);
+  const minutes = Number(minuteText);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return hours * 60 + minutes;
+};
+
+const fromMinutes = (minutesValue: number) => {
+  const wrapped = ((minutesValue % 1440) + 1440) % 1440;
+  const hours = Math.floor(wrapped / 60);
+  const minutes = wrapped % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
 const LOVE_TRIP_TARGET = '2026-07-06T08:00:00+07:00';
 
 const getLoveCountdown = () => {
@@ -599,6 +615,46 @@ export default function TripDashboardPage({ params }: PageProps) {
     });
   }, []);
 
+  const handleLateStart = useCallback((delayMinutes: number) => {
+    if (delayMinutes <= 0) return;
+
+    setItinerary((previous) => {
+      const nextWarnings: Record<string, string> = {};
+
+      const updated = previous.map((item) => {
+        const shiftedStartMinutes = toMinutes(item.start_time);
+        const shiftedEndMinutes = toMinutes(item.end_time);
+        const openingStartMinutes = toMinutes(item.place?.opening_hours.open ?? null);
+        const openingEndMinutes = toMinutes(item.place?.opening_hours.close ?? null);
+
+        const nextStartTime = shiftedStartMinutes === null ? item.start_time : fromMinutes(shiftedStartMinutes + delayMinutes);
+        const nextEndTime = shiftedEndMinutes === null ? item.end_time : fromMinutes(shiftedEndMinutes + delayMinutes);
+
+        if (
+          shiftedStartMinutes !== null &&
+          shiftedEndMinutes !== null &&
+          openingStartMinutes !== null &&
+          openingEndMinutes !== null
+        ) {
+          const nextStartMinutes = shiftedStartMinutes + delayMinutes;
+          const nextEndMinutes = shiftedEndMinutes + delayMinutes;
+          if (nextStartMinutes < openingStartMinutes || nextEndMinutes > openingEndMinutes) {
+            nextWarnings[item.id] = 'Quán này sẽ đóng cửa nếu mình đi trễ hơn!';
+          }
+        }
+
+        return {
+          ...item,
+          start_time: nextStartTime,
+          end_time: nextEndTime,
+        };
+      });
+
+      setLateWarningsByItemId(nextWarnings);
+      return updated;
+    });
+  }, []);
+
   const handleAddCustomStop = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -693,6 +749,17 @@ export default function TripDashboardPage({ params }: PageProps) {
     const cats = MOOD_CONFIG[selectedMood].categories as string[];
     return pois.filter((p) => cats.includes(p.category));
   }, [selectedMood, pois]);
+
+  const photoProgress = useMemo(() => {
+    const total = itinerary.length;
+    const completed = capturedPhotoItemIds.size;
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return {
+      total,
+      completed,
+      percent,
+    };
+  }, [capturedPhotoItemIds, itinerary.length]);
 
   const triggerCatReminder = useCallback(() => {
     setCatReminder(getReminderByTime());

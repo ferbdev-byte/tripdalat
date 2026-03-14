@@ -1,8 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, Backpack, BrainCircuit, Cat, CheckCircle2, ChevronDown, Circle, CloudDrizzle, Code2, Coffee, Compass, Dice6, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella, UtensilsCrossed, X } from 'lucide-react';
+import { AlertTriangle, Backpack, BedDouble, BrainCircuit, Cat, CheckCircle2, ChevronDown, Circle, CloudDrizzle, Code2, Coffee, Compass, Dice6, ImageIcon, Loader2, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella, UtensilsCrossed, Wallet, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Toaster, toast } from 'sonner';
@@ -106,6 +105,14 @@ type NewStopForm = {
   travelMinutes: string;
 };
 
+type RoomLookupResult = {
+  title: string;
+  imageUrl: string | null;
+  priceText: string | null;
+  sourceUrl: string;
+  fetchedAt: string;
+};
+
 type FocusMode = 'all' | 'risky' | 'indoor';
 type TripMood = 'lãng mạn' | 'phiêu lưu' | 'chill';
 type ReminderPeriod = 'sáng' | 'trưa' | 'tối';
@@ -188,7 +195,23 @@ const toHourKey = (timeValue: string | null) => {
   return timeValue.slice(0, 2);
 };
 
-const LOVE_TRIP_TARGET = '2026-07-06T08:00:00+07:00';
+const toMinutes = (timeValue: string | null) => {
+  if (!timeValue) return null;
+  const [hourText, minuteText] = timeValue.split(':');
+  const hours = Number(hourText);
+  const minutes = Number(minuteText);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return hours * 60 + minutes;
+};
+
+const fromMinutes = (minutesValue: number) => {
+  const wrapped = ((minutesValue % 1440) + 1440) % 1440;
+  const hours = Math.floor(wrapped / 60);
+  const minutes = wrapped % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
+const LOVE_TRIP_TARGET = '2026-06-20T08:00:00+07:00';
 
 const getLoveCountdown = () => {
   const targetTime = new Date(LOVE_TRIP_TARGET).getTime();
@@ -240,6 +263,11 @@ export default function TripDashboardPage({ params }: PageProps) {
   const [isInsightExpanded, setIsInsightExpanded] = useState(false);
   const [isUtilityExpanded, setIsUtilityExpanded] = useState(false);
   const [isMapExpandedMobile, setIsMapExpandedMobile] = useState(false);
+  const [roomMapsUrl, setRoomMapsUrl] = useState('');
+  const [roomManualPrice, setRoomManualPrice] = useState('');
+  const [roomLookup, setRoomLookup] = useState<RoomLookupResult | null>(null);
+  const [roomLookupError, setRoomLookupError] = useState<string | null>(null);
+  const [isRoomLookupLoading, setIsRoomLookupLoading] = useState(false);
   const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [newStop, setNewStop] = useState<NewStopForm>({
     placeName: '',
@@ -599,6 +627,46 @@ export default function TripDashboardPage({ params }: PageProps) {
     });
   }, []);
 
+  const handleLateStart = useCallback((delayMinutes: number) => {
+    if (delayMinutes <= 0) return;
+
+    setItinerary((previous) => {
+      const nextWarnings: Record<string, string> = {};
+
+      const updated = previous.map((item) => {
+        const shiftedStartMinutes = toMinutes(item.start_time);
+        const shiftedEndMinutes = toMinutes(item.end_time);
+        const openingStartMinutes = toMinutes(item.place?.opening_hours.open ?? null);
+        const openingEndMinutes = toMinutes(item.place?.opening_hours.close ?? null);
+
+        const nextStartTime = shiftedStartMinutes === null ? item.start_time : fromMinutes(shiftedStartMinutes + delayMinutes);
+        const nextEndTime = shiftedEndMinutes === null ? item.end_time : fromMinutes(shiftedEndMinutes + delayMinutes);
+
+        if (
+          shiftedStartMinutes !== null &&
+          shiftedEndMinutes !== null &&
+          openingStartMinutes !== null &&
+          openingEndMinutes !== null
+        ) {
+          const nextStartMinutes = shiftedStartMinutes + delayMinutes;
+          const nextEndMinutes = shiftedEndMinutes + delayMinutes;
+          if (nextStartMinutes < openingStartMinutes || nextEndMinutes > openingEndMinutes) {
+            nextWarnings[item.id] = 'Quán này sẽ đóng cửa nếu mình đi trễ hơn!';
+          }
+        }
+
+        return {
+          ...item,
+          start_time: nextStartTime,
+          end_time: nextEndTime,
+        };
+      });
+
+      setLateWarningsByItemId(nextWarnings);
+      return updated;
+    });
+  }, []);
+
   const handleAddCustomStop = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -693,6 +761,80 @@ export default function TripDashboardPage({ params }: PageProps) {
     const cats = MOOD_CONFIG[selectedMood].categories as string[];
     return pois.filter((p) => cats.includes(p.category));
   }, [selectedMood, pois]);
+
+  const photoProgress = useMemo(() => {
+    const total = itinerary.length;
+    const completed = capturedPhotoItemIds.size;
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return {
+      total,
+      completed,
+      percent,
+    };
+  }, [capturedPhotoItemIds, itinerary.length]);
+
+  const handleLookupRoomFromMaps = useCallback(async () => {
+    const rawUrl = roomMapsUrl.trim();
+
+    if (!rawUrl) {
+      setRoomLookupError('Vui lòng dán link Google Maps của phòng.');
+      return;
+    }
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(rawUrl);
+    } catch {
+      setRoomLookupError('Link không hợp lệ. Vui lòng kiểm tra lại URL.');
+      return;
+    }
+
+    const isGoogleMapsHost =
+      parsedUrl.hostname.includes('google.com') ||
+      parsedUrl.hostname.includes('googleusercontent.com') ||
+      parsedUrl.hostname.includes('maps.app.goo.gl') ||
+      parsedUrl.hostname.includes('goo.gl');
+
+    if (!isGoogleMapsHost) {
+      setRoomLookupError('Hiện chỉ hỗ trợ link Google Maps.');
+      return;
+    }
+
+    setIsRoomLookupLoading(true);
+    setRoomLookupError(null);
+
+    try {
+      const response = await fetch(`/api/google-maps-preview?url=${encodeURIComponent(rawUrl)}`);
+      const payload = (await response.json()) as {
+        title?: string;
+        imageUrl?: string | null;
+        priceText?: string | null;
+        sourceUrl?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Không thể lấy thông tin từ link này.');
+      }
+
+      const finalPrice = roomManualPrice.trim() || payload.priceText || null;
+      setRoomLookup({
+        title: payload.title || 'Phòng lưu trú',
+        imageUrl: payload.imageUrl ?? null,
+        priceText: finalPrice,
+        sourceUrl: payload.sourceUrl || rawUrl,
+        fetchedAt: new Date().toISOString(),
+      });
+
+      toast.success('Đã lấy thông tin phòng từ Google Maps.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể đọc dữ liệu từ link này.';
+      setRoomLookupError(message);
+      toast.error(message);
+    } finally {
+      setIsRoomLookupLoading(false);
+    }
+  }, [roomManualPrice, roomMapsUrl]);
 
   const triggerCatReminder = useCallback(() => {
     setCatReminder(getReminderByTime());
@@ -790,6 +932,32 @@ export default function TripDashboardPage({ params }: PageProps) {
             </Link>
           </div>
         )}
+
+        <div className="animate-fade-up flex flex-wrap items-center gap-2 [animation-delay:280ms]">
+          <button
+            type="button"
+            onClick={() => handleLateStart(30)}
+            className="rounded-full border border-rose/35 bg-white/75 px-3 py-2 text-xs text-[#A36464] transition hover:bg-white"
+          >
+            Bắt đầu muộn +30p
+          </button>
+          <button
+            type="button"
+            onClick={() => handleLateStart(60)}
+            className="rounded-full border border-rose/35 bg-white/75 px-3 py-2 text-xs text-[#A36464] transition hover:bg-white"
+          >
+            Bắt đầu muộn +1h
+          </button>
+        </div>
+
+        <div className="animate-fade-up rounded-2xl border border-[#7A9D8C]/25 bg-white/70 p-3 [animation-delay:320ms]">
+          <p className="text-xs text-[#527061]">
+            Chúng mình đã hoàn thành <strong>{photoProgress.completed}/{photoProgress.total}</strong> điểm đến tuyệt vời tại Đà Lạt.
+          </p>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#dfe9e4]">
+            <div className="h-full rounded-full bg-[#7A9D8C] transition-all duration-500" style={{ width: `${photoProgress.percent}%` }} />
+          </div>
+        </div>
         </header>
 
         <section
@@ -802,40 +970,29 @@ export default function TripDashboardPage({ params }: PageProps) {
           }`}
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2.5">
-                <AlertTriangle className={`h-4 w-4 shrink-0 ${weatherAlert.level === 'high' ? 'text-rose' : 'text-pine'}`} />
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className={`mt-0.5 h-4 w-4 ${weatherAlert.level === 'high' ? 'text-rose' : 'text-pine'}`} />
+              <div>
                 <p className="inline-flex rounded-full border border-white/40 bg-white/70 px-2.5 py-1 text-[10px] uppercase tracking-wide text-[#4A4A4A]/80">
                   Cảnh báo thời tiết · {weatherAlert.label}
                 </p>
+                <p className="mt-1 text-xs text-[#4A4A4A]/85 sm:text-sm">{weatherAlert.message}</p>
               </div>
-              <p className="mt-1 ml-6 text-xs text-[#4A4A4A]/85 sm:text-sm">{weatherAlert.message}</p>
             </div>
 
             <button
               type="button"
               onClick={() => setIsWeatherAlertExpanded((previous) => !previous)}
-              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-white/35 bg-white/70 px-2.5 py-1 text-[11px] leading-none text-[#4A4A4A]/80 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white active:scale-[0.98]"
+              className="inline-flex items-center gap-1 rounded-full border border-white/35 bg-white/70 px-2.5 py-1 text-[11px] text-[#4A4A4A]/80 transition hover:bg-white"
             >
               Chi tiết
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isWeatherAlertExpanded ? 'rotate-180' : 'rotate-0'}`} />
             </button>
           </div>
 
-          <AnimatePresence initial={false}>
-            {isWeatherAlertExpanded && (
-              <motion.div
-                key="weather-alert-detail"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.26, ease: 'easeOut' }}
-                className="overflow-hidden"
-              >
-                <p className="mt-2 border-t border-white/40 pt-2 text-xs text-[#4A4A4A]/75">{weatherAlert.hint}</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {isWeatherAlertExpanded && (
+            <p className="mt-2 border-t border-white/40 pt-2 text-xs text-[#4A4A4A]/75">{weatherAlert.hint}</p>
+          )}
         </section>
       </section>
 
@@ -843,23 +1000,14 @@ export default function TripDashboardPage({ params }: PageProps) {
         <button
           type="button"
           onClick={() => setIsInsightExpanded((previous) => !previous)}
-          className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/60 px-4 py-2 text-xs text-[#4A4A4A]/80 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/75 active:scale-[0.98]"
+          className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/60 px-4 py-2 text-xs text-[#4A4A4A]/80 backdrop-blur-xl"
         >
           Chỉ số thời tiết nâng cao
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isInsightExpanded ? 'rotate-180' : 'rotate-0'}`} />
         </button>
 
-        <AnimatePresence initial={false}>
-          {isInsightExpanded && (
-            <motion.div
-              key="insight-panel"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="overflow-hidden"
-            >
-              <div className="relative grid grid-cols-1 gap-3 pt-1 sm:gap-4 md:grid-cols-3">
+        {isInsightExpanded && (
+          <div className="relative grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
             <div className="animate-fade-up rounded-dalat border border-white/30 bg-white/55 p-5 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl [animation-delay:140ms]">
               <p className="text-xs uppercase tracking-wide text-pine">Comfort Score</p>
               <p className="mt-2 text-3xl text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>{weatherInsight.comfortScore}/100</p>
@@ -884,35 +1032,24 @@ export default function TripDashboardPage({ params }: PageProps) {
                 <div className="h-full rounded-full bg-rose transition-all duration-700" style={{ width: `${weatherInsight.indoorRatio}%` }} />
               </div>
             </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
       </section>
 
       <section className="space-y-3">
         <button
           type="button"
           onClick={() => setIsUtilityExpanded((previous) => !previous)}
-          className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/60 px-4 py-2 text-xs text-[#4A4A4A]/80 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/75 active:scale-[0.98]"
+          className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/60 px-4 py-2 text-xs text-[#4A4A4A]/80 backdrop-blur-xl"
         >
           Tiện ích cá nhân hoá
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isUtilityExpanded ? 'rotate-180' : 'rotate-0'}`} />
         </button>
 
-        <AnimatePresence initial={false}>
-          {isUtilityExpanded && (
-            <motion.div
-              key="utility-panel"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="overflow-hidden"
-            >
-              <div className="grid grid-cols-1 gap-4 pt-1 sm:grid-cols-2 xl:grid-cols-4">
+        {isUtilityExpanded && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Spin Wheel */}
-        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(74,74,74,0.1)]">
+        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
           <CardHeader className="p-5">
             <CardTitle className="flex items-center gap-2 text-sm text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
               <Dice6 className="h-4 w-4 text-pine" />
@@ -954,7 +1091,7 @@ export default function TripDashboardPage({ params }: PageProps) {
         </Card>
 
         {/* Checklist must-do */}
-        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(74,74,74,0.1)]">
+        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
           <CardHeader className="p-5">
             <CardTitle className="flex items-center gap-2 text-sm text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
               <CheckCircle2 className="h-4 w-4 text-pine" />
@@ -988,7 +1125,7 @@ export default function TripDashboardPage({ params }: PageProps) {
         </Card>
 
         {/* Packing gợi ý */}
-        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(74,74,74,0.1)]">
+        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
           <CardHeader className="p-5">
             <CardTitle className="flex items-center gap-2 text-sm text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
               <Backpack className="h-4 w-4 text-pine" />
@@ -1012,7 +1149,7 @@ export default function TripDashboardPage({ params }: PageProps) {
         </Card>
 
         {/* Mood board */}
-        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(74,74,74,0.1)]">
+        <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
           <CardHeader className="p-5">
             <CardTitle className="flex items-center gap-2 text-sm text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
               <Coffee className="h-4 w-4 text-pine" />
@@ -1043,10 +1180,8 @@ export default function TripDashboardPage({ params }: PageProps) {
             )}
           </CardContent>
         </Card>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
       </section>
 
       <div className="relative grid grid-cols-1 gap-5 sm:gap-8 xl:grid-cols-3 xl:gap-10">
@@ -1094,23 +1229,14 @@ export default function TripDashboardPage({ params }: PageProps) {
                 <button
                   type="button"
                   onClick={() => setIsAddStopOpen((previous) => !previous)}
-                  className="shrink-0 rounded-full border border-pine/25 bg-white/70 px-3 py-2 text-xs text-pine transition-all duration-300 hover:-translate-y-0.5 hover:bg-white active:scale-[0.98]"
+                  className="shrink-0 rounded-full border border-pine/25 bg-white/70 px-3 py-2 text-xs text-pine transition hover:bg-white"
                 >
                   {isAddStopOpen ? 'Thu gọn' : 'Mở form'}
                 </button>
               </div>
 
-              <AnimatePresence initial={false}>
-                {isAddStopOpen && (
-                  <motion.form
-                    key="add-stop-form"
-                    onSubmit={handleAddCustomStop}
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.24, ease: 'easeOut' }}
-                    className="mt-4 space-y-3 overflow-hidden"
-                  >
+              {isAddStopOpen && (
+                <form onSubmit={handleAddCustomStop} className="mt-4 space-y-3">
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <label className="md:col-span-2 space-y-1.5 text-xs text-[#4A4A4A]/75">
                       <span>Tên địa điểm</span>
@@ -1206,84 +1332,57 @@ export default function TripDashboardPage({ params }: PageProps) {
                   <button type="submit" className="w-full rounded-2xl bg-pine px-4 py-3.5 text-sm font-medium text-white transition hover:opacity-90">
                     Thêm điểm đến + thời gian di chuyển
                   </button>
-                  </motion.form>
-                )}
-              </AnimatePresence>
+                </form>
+              )}
             </section>
 
             <div className="animate-fade-up flex flex-wrap gap-2 [animation-delay:160ms]">
               <button
                 type="button"
                 onClick={() => setFocusMode('all')}
-                className={`rounded-full px-3 py-2 text-xs transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] ${focusMode === 'all' ? 'bg-pine text-white shadow-[0_8px_18px_rgba(82,112,97,0.25)]' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80 hover:bg-white/75'}`}
+                className={`rounded-full px-3 py-2 text-xs transition ${focusMode === 'all' ? 'bg-pine text-white' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80'}`}
               >
                 Tất cả
               </button>
               <button
                 type="button"
                 onClick={() => setFocusMode('risky')}
-                className={`rounded-full px-3 py-2 text-xs transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] ${focusMode === 'risky' ? 'bg-rose text-white shadow-[0_8px_18px_rgba(163,100,100,0.28)]' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80 hover:bg-white/75'}`}
+                className={`rounded-full px-3 py-2 text-xs transition ${focusMode === 'risky' ? 'bg-rose text-white' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80'}`}
               >
                 Rủi ro mưa cao
               </button>
               <button
                 type="button"
                 onClick={() => setFocusMode('indoor')}
-                className={`rounded-full px-3 py-2 text-xs transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] ${focusMode === 'indoor' ? 'bg-pine text-white shadow-[0_8px_18px_rgba(82,112,97,0.25)]' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80 hover:bg-white/75'}`}
+                className={`rounded-full px-3 py-2 text-xs transition ${focusMode === 'indoor' ? 'bg-pine text-white' : 'border border-white/30 bg-white/55 text-[#4A4A4A]/80'}`}
               >
                 Chỉ indoor
               </button>
             </div>
 
-            <AnimatePresence mode="wait" initial={false}>
-              {loading ? (
-                <motion.p
-                  key="timeline-loading"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                  className="text-sm text-[#4A4A4A]/70"
-                >
-                  Đang tải timeline...
-                </motion.p>
-              ) : filteredItinerary.length === 0 ? (
-                <motion.div
-                  key={`timeline-empty-${focusMode}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.24, ease: 'easeOut' }}
-                  className="flex min-h-56 flex-col items-center justify-center rounded-dalat border border-dashed border-pine/30 bg-white/35 p-8 text-center backdrop-blur-md transition-all duration-700"
-                >
-                  <div className="text-5xl">🐻💤</div>
-                  <p className="mt-3 text-sm font-medium text-[#4A4A4A]">Không có hoạt động phù hợp với bộ lọc hiện tại.</p>
-                  <p className="mt-1 text-xs text-[#4A4A4A]/70">Thử đổi sang “Tất cả” để xem toàn bộ timeline.</p>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key={`timeline-list-${focusMode}-${filteredItinerary.length}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.24, ease: 'easeOut' }}
-                >
-                  <ItineraryTimeline
-                    items={filteredItinerary}
-                    selectedPoiId={selectedPoiId}
-                    isRaining={isRaining}
-                    hourlyTemperatureByHour={hourlyTemperatureByHour}
-                    lateWarningsByItemId={lateWarningsByItemId}
-                    capturedPhotoItemIds={capturedPhotoItemIds}
-                    travelMinutesByItemId={travelMinutesByItemId}
-                    onSetTravelMinutes={handleSetTravelMinutes}
-                    onCapturePhoto={handleCapturePhoto}
-                    onFocusPlaceOnMap={handleFocusPlaceOnMap}
-                    onSuggestIndoorCafe={handleSuggestIndoorCafe}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {loading ? (
+              <p className="text-sm text-[#4A4A4A]/70">Đang tải timeline...</p>
+            ) : filteredItinerary.length === 0 ? (
+              <div className="flex min-h-56 flex-col items-center justify-center rounded-dalat border border-dashed border-pine/30 bg-white/35 p-8 text-center backdrop-blur-md transition-all duration-700">
+                <div className="text-5xl">🐻💤</div>
+                <p className="mt-3 text-sm font-medium text-[#4A4A4A]">Không có hoạt động phù hợp với bộ lọc hiện tại.</p>
+                <p className="mt-1 text-xs text-[#4A4A4A]/70">Thử đổi sang “Tất cả” để xem toàn bộ timeline.</p>
+              </div>
+            ) : (
+              <ItineraryTimeline
+                items={filteredItinerary}
+                selectedPoiId={selectedPoiId}
+                isRaining={isRaining}
+                hourlyTemperatureByHour={hourlyTemperatureByHour}
+                lateWarningsByItemId={lateWarningsByItemId}
+                capturedPhotoItemIds={capturedPhotoItemIds}
+                travelMinutesByItemId={travelMinutesByItemId}
+                onSetTravelMinutes={handleSetTravelMinutes}
+                onCapturePhoto={handleCapturePhoto}
+                onFocusPlaceOnMap={handleFocusPlaceOnMap}
+                onSuggestIndoorCafe={handleSuggestIndoorCafe}
+              />
+            )}
 
               <div className="animate-fade-up rounded-dalat border border-pine/25 bg-white/60 p-4 sm:p-5 text-sm text-[#4A4A4A] shadow-[0_10px_26px_rgba(74,74,74,0.07)] [animation-delay:280ms]">
               <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
