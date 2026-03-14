@@ -64,6 +64,9 @@ type Poi = {
     open: string;
     close: string;
   };
+  outfit_concept: string;
+  temp_advice: string;
+  photo_spot_tips: string[];
 };
 
 type NewStopForm = {
@@ -287,6 +290,9 @@ export default function TripDashboardPage({ params }: PageProps) {
         longitude: place.longitude,
         is_indoor: place.is_indoor,
         opening_hours: place.opening_hours,
+        outfit_concept: place.outfit_concept ?? '',
+        temp_advice: place.temp_advice ?? '',
+        photo_spot_tips: place.photo_spot_tips ?? [],
       })),
     );
 
@@ -645,6 +651,10 @@ export default function TripDashboardPage({ params }: PageProps) {
         latitude,
         longitude,
         is_indoor: newStop.isIndoor,
+        opening_hours: { open: '00:00', close: '23:59' },
+        outfit_concept: '',
+        temp_advice: '',
+        photo_spot_tips: [],
       };
 
       const nextItem: ItineraryRow = {

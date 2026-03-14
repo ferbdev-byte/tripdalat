@@ -29,9 +29,9 @@ type NormalizedPoi = {
   latitude: number;
   longitude: number;
   is_indoor: boolean;
-  description?: string;
-  best_time?: string;
-  image_url?: string;
+  description: string | undefined;
+  best_time: string | undefined;
+  image_url: string | undefined;
 };
 
 type DalatMapProps = {
