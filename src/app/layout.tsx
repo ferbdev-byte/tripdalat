@@ -1,6 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter, Playfair_Display } from 'next/font/google';
+import { Caveat, Inter, Playfair_Display } from 'next/font/google';
 import { Code2 } from 'lucide-react';
 
 const headingFont = Playfair_Display({
@@ -12,6 +12,12 @@ const headingFont = Playfair_Display({
 const bodyFont = Inter({
   subsets: ['latin'],
   variable: '--font-body',
+  display: 'swap',
+});
+
+const handwritingFont = Caveat({
+  subsets: ['latin'],
+  variable: '--font-handwriting',
   display: 'swap',
 });
 
@@ -27,7 +33,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi">
-      <body className={`${headingFont.variable} ${bodyFont.variable}`}>
+      <body className={`${headingFont.variable} ${bodyFont.variable} ${handwritingFont.variable}`}>
         <div className="min-h-screen flex flex-col">
           <div className="flex-1">{children}</div>
           <footer className="px-4 pb-4 pt-2 sm:px-6 sm:pb-6">

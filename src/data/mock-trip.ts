@@ -5,6 +5,13 @@ export type MockPlace = {
   latitude: number;
   longitude: number;
   is_indoor: boolean;
+  opening_hours: {
+    open: string;
+    close: string;
+  };
+  outfit_concept: string;
+  temp_advice: string;
+  photo_spot_tips: string[];
 };
 
 export type MockItineraryItem = {
@@ -14,6 +21,7 @@ export type MockItineraryItem = {
   start_time: string;
   end_time: string;
   place_id: string;
+  estimated_cost: number;
 };
 
 export type MockExpense = {
@@ -45,6 +53,10 @@ export const mockTrip = {
       latitude: 11.9666,
       longitude: 108.4552,
       is_indoor: true,
+      opening_hours: { open: '07:00', close: '22:00' },
+      outfit_concept: 'Sage Green + Kem',
+      temp_advice: 'Sáng sớm nên có áo khoác mỏng.',
+      photo_spot_tips: ['Chụp gần cửa kính để lấy ánh sáng mềm.', 'Đặt cốc cà phê vào tiền cảnh.'],
     },
     {
       id: 'place-lululola',
@@ -53,6 +65,10 @@ export const mockTrip = {
       latitude: 11.9309,
       longitude: 108.4275,
       is_indoor: true,
+      opening_hours: { open: '07:30', close: '22:30' },
+      outfit_concept: 'Dusty Rose + Trắng',
+      temp_advice: 'Chiều tối gió mạnh hơn, nên có áo khoác.',
+      photo_spot_tips: ['Canh giờ vàng 16:30-17:15.', 'Đứng lệch khung để lấy đường chân trời.'],
     },
     {
       id: 'place-cho-da-lat',
@@ -61,6 +77,10 @@ export const mockTrip = {
       latitude: 11.9407,
       longitude: 108.4384,
       is_indoor: true,
+      opening_hours: { open: '07:00', close: '23:00' },
+      outfit_concept: 'Nâu Ấm + Đỏ Gạch',
+      temp_advice: 'Buổi tối lạnh rõ, mang áo giữ ấm gọn nhẹ.',
+      photo_spot_tips: ['Chụp biển hiệu đèn neon ở góc rộng.', 'Ưu tiên ảnh món ăn với nền bokeh.'],
     },
     {
       id: 'place-cay-thong-co-don',
@@ -69,6 +89,10 @@ export const mockTrip = {
       latitude: 12.0724,
       longitude: 108.4431,
       is_indoor: false,
+      opening_hours: { open: '05:30', close: '18:00' },
+      outfit_concept: 'Nâu Gỗ + Rêu',
+      temp_advice: 'Khu vực thoáng gió, ưu tiên giày kín và khăn choàng.',
+      photo_spot_tips: ['Chụp xa để thấy cây nổi bật trên nền trời.', 'Giữ đường chân trời ở 1/3 khung hình.'],
     },
     {
       id: 'place-san-may-cau-dat',
@@ -77,6 +101,10 @@ export const mockTrip = {
       latitude: 11.8664,
       longitude: 108.5684,
       is_indoor: false,
+      opening_hours: { open: '04:30', close: '17:30' },
+      outfit_concept: 'Trắng Sữa + Xám Khói',
+      temp_advice: 'Nhiệt độ sáng rất thấp, nên mặc nhiều lớp giữ nhiệt.',
+      photo_spot_tips: ['Đến sớm để có vị trí cao và thoáng.', 'Dùng chế độ HDR để giữ chi tiết mây.'],
     },
     {
       id: 'place-ho-tuyen-lam',
@@ -85,6 +113,10 @@ export const mockTrip = {
       latitude: 11.9057,
       longitude: 108.4449,
       is_indoor: false,
+      opening_hours: { open: '06:00', close: '18:30' },
+      outfit_concept: 'Xanh Lam Nhạt + Be',
+      temp_advice: 'Chiều muộn dễ lạnh tay, mang áo khoác mỏng.',
+      photo_spot_tips: ['Lấy reflection mặt hồ lúc gió nhẹ.', 'Đặt chủ thể gần hàng thông để tạo chiều sâu.'],
     },
   ] as MockPlace[],
   itinerary_items: [
@@ -95,6 +127,7 @@ export const mockTrip = {
       start_time: '05:00',
       end_time: '06:30',
       place_id: 'place-san-may-cau-dat',
+      estimated_cost: 260000,
     },
     {
       id: 'itn-2',
@@ -103,6 +136,7 @@ export const mockTrip = {
       start_time: '09:00',
       end_time: '10:30',
       place_id: 'place-tu-mo-to',
+      estimated_cost: 180000,
     },
     {
       id: 'itn-3',
@@ -111,6 +145,7 @@ export const mockTrip = {
       start_time: '15:00',
       end_time: '16:30',
       place_id: 'place-ho-tuyen-lam',
+      estimated_cost: 130000,
     },
     {
       id: 'itn-4',
@@ -119,6 +154,7 @@ export const mockTrip = {
       start_time: '19:00',
       end_time: '20:30',
       place_id: 'place-cho-da-lat',
+      estimated_cost: 420000,
     },
   ] as MockItineraryItem[],
   expenses: [

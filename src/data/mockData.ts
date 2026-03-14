@@ -5,6 +5,13 @@ export type Place = {
   latitude: number;
   longitude: number;
   is_indoor: boolean;
+  opening_hours: {
+    open: string;
+    close: string;
+  };
+  outfit_concept: string;
+  temp_advice: string;
+  photo_spot_tips: string[];
 };
 
 export type ItineraryItem = {
@@ -14,6 +21,7 @@ export type ItineraryItem = {
   start_time: string;
   end_time: string;
   place_id: string;
+  estimated_cost: number;
 };
 
 export type ExpenseItem = {
@@ -48,6 +56,10 @@ export const mockData = {
       latitude: 11.9666,
       longitude: 108.4552,
       is_indoor: true,
+      opening_hours: { open: '07:00', close: '22:00' },
+      outfit_concept: 'Sage Green + Kem',
+      temp_advice: 'Không gian ấm, nhưng sáng sớm vẫn có gió lạnh nhẹ.',
+      photo_spot_tips: ['Chụp từ góc thấp để lấy ánh đèn vàng.', 'Đặt ly cà phê ở tiền cảnh để khung hình có chiều sâu.'],
     },
     {
       id: 'p-2',
@@ -56,6 +68,10 @@ export const mockData = {
       latitude: 11.9309,
       longitude: 108.4275,
       is_indoor: true,
+      opening_hours: { open: '07:30', close: '22:30' },
+      outfit_concept: 'Dusty Rose + Trắng',
+      temp_advice: 'Nên mang áo khoác mỏng vì gió chiều trên đồi khá rõ.',
+      photo_spot_tips: ['Canh khung lúc hoàng hôn để da lên màu ấm.', 'Đứng chếch 45 độ để lấy sân khấu và đồi phía sau.'],
     },
     {
       id: 'p-3',
@@ -64,6 +80,10 @@ export const mockData = {
       latitude: 12.0724,
       longitude: 108.4431,
       is_indoor: false,
+      opening_hours: { open: '05:30', close: '18:00' },
+      outfit_concept: 'Nâu Gỗ + Rêu',
+      temp_advice: 'Địa hình thoáng gió, nên chuẩn bị khăn choàng cổ.',
+      photo_spot_tips: ['Chụp toàn cảnh từ xa để thấy độ cô độc của cây.', 'Để chủ thể ở 1/3 khung hình tạo cảm giác thơ hơn.'],
     },
     {
       id: 'p-4',
@@ -72,6 +92,10 @@ export const mockData = {
       latitude: 11.8664,
       longitude: 108.5684,
       is_indoor: false,
+      opening_hours: { open: '04:30', close: '17:30' },
+      outfit_concept: 'Trắng Sữa + Xám Khói',
+      temp_advice: 'Sáng sớm nhiệt thấp, ưu tiên áo giữ nhiệt và giày kín.',
+      photo_spot_tips: ['Đến sớm 15 phút để chọn vị trí cao thoáng.', 'Canh ngược sáng nhẹ để tạo viền tóc nổi bật trong mây.'],
     },
     {
       id: 'p-5',
@@ -80,6 +104,10 @@ export const mockData = {
       latitude: 11.9057,
       longitude: 108.4449,
       is_indoor: false,
+      opening_hours: { open: '06:00', close: '18:30' },
+      outfit_concept: 'Xanh Lam Nhạt + Be',
+      temp_advice: 'Chiều muộn có sương mỏng, nên có áo khoác nhẹ.',
+      photo_spot_tips: ['Chụp reflection mặt hồ ở góc thấp sát bờ.', 'Lấy hàng thông hai bên làm đường dẫn khung hình.'],
     },
     {
       id: 'p-6',
@@ -88,6 +116,10 @@ export const mockData = {
       latitude: 11.9407,
       longitude: 108.4384,
       is_indoor: true,
+      opening_hours: { open: '07:00', close: '23:00' },
+      outfit_concept: 'Nâu Ấm + Đỏ Gạch',
+      temp_advice: 'Buổi tối đông và lạnh, nên có áo khoác gọn dễ di chuyển.',
+      photo_spot_tips: ['Chụp góc cầu thang chợ để lấy ánh đèn phố.', 'Dùng chế độ chân dung để làm nổi món ăn nóng.'],
     },
   ] as Place[],
   itinerary: [
@@ -98,6 +130,7 @@ export const mockData = {
       start_time: '05:00',
       end_time: '06:30',
       place_id: 'p-4',
+      estimated_cost: 280000,
     },
     {
       id: 'i-2',
@@ -106,6 +139,7 @@ export const mockData = {
       start_time: '09:00',
       end_time: '10:30',
       place_id: 'p-1',
+      estimated_cost: 190000,
     },
     {
       id: 'i-3',
@@ -114,6 +148,7 @@ export const mockData = {
       start_time: '15:00',
       end_time: '16:30',
       place_id: 'p-5',
+      estimated_cost: 120000,
     },
     {
       id: 'i-4',
@@ -122,6 +157,7 @@ export const mockData = {
       start_time: '19:00',
       end_time: '20:30',
       place_id: 'p-6',
+      estimated_cost: 450000,
     },
   ] as ItineraryItem[],
   expenses: [

@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { AlertTriangle, ChevronDown, Coffee, Dices, MapPin, MapPinned, Sunrise } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Coffee, Dices, ExternalLink, MapPin, MapPinned, Sunrise } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../../components/ui/card';
 import { getTripById } from '../../../../../data/mockData';
@@ -32,6 +32,11 @@ type FoodSpot = {
   latitude: number;
   longitude: number;
   isIndoor: boolean;
+};
+
+const getMotorcycleMapsLink = (spot: FoodSpot) => {
+  const destinationQuery = encodeURIComponent(`${spot.name}, ${spot.address}, Da Lat, Lam Dong, Vietnam`);
+  return `https://www.google.com/maps/dir/?api=1&destination=${destinationQuery}&travelmode=motorcycle`;
 };
 
 const breakfastSpots: FoodSpot[] = [
@@ -584,31 +589,45 @@ const travelNotes = [
 function MenuColumn({
   title,
   description,
+  timeWindow,
   icon,
   spots,
+  isExpanded,
+  onToggle,
   selectedSpotId,
   onSelectSpot,
 }: {
   title: string;
   description: string;
+  timeWindow: string;
   icon: React.ReactNode;
   spots: FoodSpot[];
+  isExpanded: boolean;
+  onToggle: () => void;
   selectedSpotId: string | null;
   onSelectSpot: (spotId: string) => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
   return (
     <Card className="h-full rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
       <CardHeader className="p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3">
-          <CardTitle className="inline-flex items-center gap-2 text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
-            {icon}
-            {title}
-          </CardTitle>
+          <div className="space-y-2">
+            <CardTitle className="inline-flex items-center gap-2 text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
+              {icon}
+              {title}
+            </CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-pine/25 bg-pine/10 px-2.5 py-1 text-[10px] uppercase tracking-wide text-pine">
+                {spots.length} quán
+              </span>
+              <span className="rounded-full border border-[#A67B5B]/25 bg-white/80 px-2.5 py-1 text-[10px] uppercase tracking-wide text-[#7C5A42]">
+                {timeWindow}
+              </span>
+            </div>
+          </div>
           <button
             type="button"
-            onClick={() => setIsExpanded((previous) => !previous)}
+            onClick={onToggle}
             className="inline-flex items-center gap-1 rounded-full border border-pine/25 bg-white/70 px-3 py-1.5 text-[11px] text-pine transition hover:bg-white"
           >
             {isExpanded ? 'Ẩn' : 'Hiện'}
@@ -639,6 +658,17 @@ function MenuColumn({
                   {spot.address}
                 </p>
                 <p className="mt-1 text-xs text-[#4A4A4A]/65">Giờ mở cửa: {spot.openHours}</p>
+
+                <a
+                  href={getMotorcycleMapsLink(spot)}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) => event.stopPropagation()}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-pine/30 bg-white px-3 py-1.5 text-[11px] text-pine transition hover:bg-white/80"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Dẫn đường xe máy
+                </a>
               </article>
             ))
           )}
@@ -652,6 +682,11 @@ export default function FoodMenuPage({ params }: PageProps) {
   const [tripId, setTripId] = useState('');
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(breakfastSpots[0]?.id ?? null);
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
+  const [expandedColumns, setExpandedColumns] = useState({
+    dayMeal: true,
+    cafe: true,
+    dinner: true,
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [indoorOnly, setIndoorOnly] = useState(false);
 
@@ -740,6 +775,13 @@ export default function FoodMenuPage({ params }: PageProps) {
   };
 
   const hasActiveFilters = searchQuery.trim().length > 0 || indoorOnly;
+
+  const toggleColumn = (column: 'dayMeal' | 'cafe' | 'dinner') => {
+    setExpandedColumns((previous) => ({
+      ...previous,
+      [column]: !previous[column],
+    }));
+  };
 
   return (
     <main className="min-h-screen bg-[#FDFCFB] px-4 py-6 sm:px-6 md:px-10 md:py-10">
@@ -836,24 +878,33 @@ export default function FoodMenuPage({ params }: PageProps) {
           <MenuColumn
             title="Ăn sáng & ăn trưa"
             description="Tổng hợp món sáng và trưa bạn đã lọc để dễ chọn theo giờ mở cửa."
+            timeWindow="06:00 - 15:30"
             icon={<Sunrise className="h-5 w-5 text-pine" />}
             spots={filteredDayMealSpots}
+            isExpanded={expandedColumns.dayMeal}
+            onToggle={() => toggleColumn('dayMeal')}
             selectedSpotId={selectedSpotId}
             onSelectSpot={handleSelectSpot}
           />
           <MenuColumn
             title="Cafe"
             description="Danh sách quán cà phê view đẹp, chill để check-in và nghỉ chân."
+            timeWindow="07:00 - 22:30"
             icon={<Coffee className="h-5 w-5 text-pine" />}
             spots={filteredCafeSpots}
+            isExpanded={expandedColumns.cafe}
+            onToggle={() => toggleColumn('cafe')}
             selectedSpotId={selectedSpotId}
             onSelectSpot={handleSelectSpot}
           />
           <MenuColumn
             title="Ăn tối"
             description="Lẩu và đồ nướng buổi tối để chốt lịch ăn sau khi đi chơi."
+            timeWindow="17:00 - 23:00"
             icon={<Dices className="h-5 w-5 text-pine" />}
             spots={filteredDinnerSpots}
+            isExpanded={expandedColumns.dinner}
+            onToggle={() => toggleColumn('dinner')}
             selectedSpotId={selectedSpotId}
             onSelectSpot={handleSelectSpot}
           />
@@ -885,6 +936,7 @@ export default function FoodMenuPage({ params }: PageProps) {
           </CardContent>
         </Card>
       </section>
+
     </main>
   );
 }

@@ -380,3 +380,44 @@ SEO (Search Engine Optimization): Để trang web của bạn dễ tìm thấy t
 Load Speed / Performance: Tốc độ tải trang.
 
 Sitemap: Sơ đồ trang web.
+
+# TripDalat Project - Development Plan (Non-Supabase)
+
+## 1. Project Overview
+- **Core:** Ứng dụng quản lý lịch trình du lịch Đà Lạt (Trip Planner).
+- **Tech Stack:** Next.js (App Router), Tailwind CSS, Framer Motion, Lucide Icons.
+- **Data Handling:** Fetching via REST API / Local Storage (Tùy giai đoạn).
+- **Style:** Minimalism, Aesthetic, "Chill" Đà Lạt vibe.
+
+## 2. Updated Folder Structure
+(Giữ nguyên cấu trúc App Router nhưng loại bỏ phần Supabase)
+- `src/services/`: Dùng để viết các hàm fetch API (Weather, POI, Places).
+- `src/store/`: (Nếu dùng Zustand/Redux) Để quản lý trạng thái chuyến đi toàn cục.
+- `src/hooks/`: Chứa các custom hooks như `useWeather`, `useItinerary`.
+
+## 3. Key Feature Specifications (For AI Follow)
+
+### A. Itinerary & Timeline
+- Hiển thị lịch trình theo dạng "Trục thời gian" (Vertical Timeline).
+- Mỗi mục (ItineraryItem) cần có: Thời gian, Địa điểm, Ghi chú, Icon loại hình (Cafe, Ăn uống, Tham quan).
+- Tính năng: Thêm/Xóa/Sửa các điểm đến trong list.
+
+### B. POI (Points of Interest) Data
+- Dữ liệu địa điểm cần có: `name`, `category`, `coordinates`, `best_time`.
+- Phân loại: Cafe, Food, Sightseeing, Hotel.
+
+### C. Weather & Logistics
+- Tích hợp OpenWeatherMap API để lấy thời tiết Đà Lạt.
+- Tự động gợi ý: "Nên mang theo áo mưa" nếu dự báo có mưa.
+
+## 4. Coding Principles
+- **Component-Driven:** Tách nhỏ các UI components (Button, Card, Input).
+- **Aesthetic UI:** - Sử dụng Soft Shadows (`shadow-sm`).
+  - Bo góc lớn (`rounded-2xl` hoặc `rounded-3xl`).
+  - Màu sắc: Sage Green (#7A9D8C), Warm Wood (#A67B5B), Sand (#F4F1EA).
+- **Client-side Logic:** Ưu tiên xử lý mượt mà các tương tác người dùng (animations).
+
+## 5. Current Priority
+1. Hoàn thiện Layout Dashboard (Sidebar + Header).
+2. Code Component `ItineraryTimeline.tsx` với dữ liệu mẫu (Mock data).
+3. Code `WeatherWidget.tsx` hiển thị nhiệt độ thực tế tại Đà Lạt.

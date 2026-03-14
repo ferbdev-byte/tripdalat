@@ -14,8 +14,13 @@ body {
 
 h1,
 h2,
-h3 {
+h3,
+h4 {
   font-family: var(--font-heading), 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
   font-weight: 500;
   letter-spacing: 0.01em;
+}
+
+.font-handwriting {
+  font-family: var(--font-handwriting), 'Segoe Script', 'Brush Script MT', cursive;
 }

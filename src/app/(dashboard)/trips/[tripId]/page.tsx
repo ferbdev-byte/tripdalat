@@ -5,8 +5,10 @@ import { AlertTriangle, Backpack, BrainCircuit, Cat, CheckCircle2, Circle, Cloud
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Toaster, toast } from 'sonner';
+import { ItineraryTimeline } from '../../../../components/trip/ItineraryTimeline';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { RainForecastWidget } from '../../../../components/weather/RainForecastWidget';
+import { WeatherOverlay } from '../../../../components/weather/WeatherOverlay';
 import { getTripById, type ItineraryItem, type Place } from '../../../../data/mockData';
 import { useTrip } from '../../../../hooks/useTrip';
 
@@ -32,13 +34,22 @@ type ItineraryRow = {
   description: string | null;
   start_time: string | null;
   end_time: string | null;
+  estimated_cost?: number;
   place_id: string | null;
   place: {
     id: string;
     name: string;
+    category: Place['category'];
     latitude: number;
     longitude: number;
     is_indoor: boolean;
+    opening_hours: {
+      open: string;
+      close: string;
+    };
+    outfit_concept: string;
+    temp_advice: string;
+    photo_spot_tips: string[];
   } | null;
 };
 
@@ -49,6 +60,10 @@ type Poi = {
   latitude: number;
   longitude: number;
   is_indoor: boolean;
+  opening_hours: {
+    open: string;
+    close: string;
+  };
 };
 
 type NewStopForm = {
@@ -145,6 +160,45 @@ const toHourKey = (timeValue: string | null) => {
   return timeValue.slice(0, 2);
 };
 
+const toMinutes = (timeValue: string | null) => {
+  if (!timeValue) return null;
+  const [hourText, minuteText] = timeValue.split(':');
+  const hours = Number(hourText);
+  const minutes = Number(minuteText);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return hours * 60 + minutes;
+};
+
+const fromMinutes = (minutesValue: number) => {
+  const wrapped = ((minutesValue % 1440) + 1440) % 1440;
+  const hours = Math.floor(wrapped / 60);
+  const minutes = wrapped % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
+const LOVE_TRIP_TARGET = '2026-06-20T08:00:00+07:00';
+
+const getLoveCountdown = () => {
+  const targetTime = new Date(LOVE_TRIP_TARGET).getTime();
+  const nowTime = Date.now();
+  const diffMs = targetTime - nowTime;
+
+  if (diffMs <= 0) {
+    return {
+      days: 0,
+      hours: 0,
+      isReached: true,
+    };
+  }
+
+  const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+  return {
+    days: Math.floor(totalHours / 24),
+    hours: totalHours % 24,
+    isReached: false,
+  };
+};
+
 export default function TripDashboardPage({ params }: PageProps) {
   const [tripId, setTripId] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -156,6 +210,7 @@ export default function TripDashboardPage({ params }: PageProps) {
   const [pois, setPois] = useState<Poi[]>([]);
   const [focusMode, setFocusMode] = useState<FocusMode>('all');
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
+  const [mapFocusZoomLevel, setMapFocusZoomLevel] = useState(14);
   const [travelMinutesByItemId, setTravelMinutesByItemId] = useState<Record<string, number>>({});
   const [isAddStopOpen, setIsAddStopOpen] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
@@ -165,6 +220,10 @@ export default function TripDashboardPage({ params }: PageProps) {
   const [selectedMood, setSelectedMood] = useState<TripMood | null>(null);
   const [catReminder, setCatReminder] = useState(DEFAULT_CAT_REMINDER);
   const [isCatReminderOpen, setIsCatReminderOpen] = useState(false);
+  const [loveCountdown, setLoveCountdown] = useState(getLoveCountdown);
+  const [heroOverlayOpacity, setHeroOverlayOpacity] = useState(1);
+  const [lateWarningsByItemId, setLateWarningsByItemId] = useState<Record<string, string>>({});
+  const [capturedPhotoItemIds, setCapturedPhotoItemIds] = useState<Set<string>>(new Set());
   const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [newStop, setNewStop] = useState<NewStopForm>({
     placeName: '',
@@ -199,14 +258,20 @@ export default function TripDashboardPage({ params }: PageProps) {
         description: item.description,
         start_time: item.start_time,
         end_time: item.end_time,
+        estimated_cost: Number(item.estimated_cost ?? 0),
         place_id: item.place_id,
         place: place
           ? {
               id: place.id,
               name: place.name,
+              category: place.category,
               latitude: place.latitude,
               longitude: place.longitude,
               is_indoor: place.is_indoor,
+                  opening_hours: place.opening_hours,
+                  outfit_concept: place.outfit_concept,
+                  temp_advice: place.temp_advice,
+                  photo_spot_tips: place.photo_spot_tips,
             }
           : null,
       };
@@ -221,6 +286,7 @@ export default function TripDashboardPage({ params }: PageProps) {
         latitude: place.latitude,
         longitude: place.longitude,
         is_indoor: place.is_indoor,
+        opening_hours: place.opening_hours,
       })),
     );
 
@@ -231,6 +297,8 @@ export default function TripDashboardPage({ params }: PageProps) {
       }, {}),
     );
     setSelectedPoiId(mappedItems[0]?.place?.id ?? null);
+    setLateWarningsByItemId({});
+    setCapturedPhotoItemIds(new Set());
     setLoading(false);
   }, [tripId]);
 
@@ -272,6 +340,38 @@ export default function TripDashboardPage({ params }: PageProps) {
       comfortScore,
     };
   }, [hourlyRain, itinerary]);
+
+  const weatherMood = useMemo<'clear' | 'rainy' | 'foggy'>(() => {
+    const weatherSeries = tripId ? getTripById(tripId).weather : [];
+
+    if (isRaining || weatherInsight.avgRain >= 65) {
+      return 'rainy';
+    }
+
+    if (weatherSeries.length === 0) {
+      return 'clear';
+    }
+
+    const averageHumidity =
+      weatherSeries.reduce((sum, item) => sum + item.humidity, 0) / weatherSeries.length;
+    const averageCloudCover =
+      weatherSeries.reduce((sum, item) => sum + item.cloudCover, 0) / weatherSeries.length;
+
+    if (averageHumidity >= 86 || averageCloudCover >= 84) {
+      return 'foggy';
+    }
+
+    return 'clear';
+  }, [isRaining, tripId, weatherInsight.avgRain]);
+
+  const hourlyTemperatureByHour = useMemo(() => {
+    if (!tripId) return {} as Record<string, number>;
+
+    return getTripById(tripId).weather.reduce<Record<string, number>>((accumulator, item) => {
+      accumulator[item.hour] = item.temperature;
+      return accumulator;
+    }, {});
+  }, [tripId]);
 
   const weatherAlert = useMemo(() => {
     if (weatherInsight.avgRain >= 70 || weatherInsight.riskyCount >= 2) {
@@ -346,10 +446,12 @@ export default function TripDashboardPage({ params }: PageProps) {
     element.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  const handleFocusPlaceOnMap = useCallback((placeId: string) => {
+  const handleFocusPlaceOnMap = useCallback((placeId: string, options?: { zoomLevel?: number; scrollToMap?: boolean }) => {
     setSelectedPoiId(placeId);
+    setMapFocusZoomLevel(options?.zoomLevel ?? 14);
 
     if (typeof window === 'undefined') return;
+    if (options?.scrollToMap === false) return;
     if (window.innerWidth >= 1280) return;
 
     window.setTimeout(() => {
@@ -469,6 +571,55 @@ export default function TripDashboardPage({ params }: PageProps) {
     }));
   }, []);
 
+  const handleCapturePhoto = useCallback((itemId: string) => {
+    setCapturedPhotoItemIds((previous) => {
+      if (previous.has(itemId)) return previous;
+      const next = new Set(previous);
+      next.add(itemId);
+      return next;
+    });
+  }, []);
+
+  const handleLateStart = useCallback((delayMinutes: number) => {
+    if (delayMinutes <= 0) return;
+
+    setItinerary((previous) => {
+      const nextWarnings: Record<string, string> = {};
+
+      const updated = previous.map((item) => {
+        const shiftedStartMinutes = toMinutes(item.start_time);
+        const shiftedEndMinutes = toMinutes(item.end_time);
+        const openingStartMinutes = toMinutes(item.place?.opening_hours.open ?? null);
+        const openingEndMinutes = toMinutes(item.place?.opening_hours.close ?? null);
+
+        const nextStartTime = shiftedStartMinutes === null ? item.start_time : fromMinutes(shiftedStartMinutes + delayMinutes);
+        const nextEndTime = shiftedEndMinutes === null ? item.end_time : fromMinutes(shiftedEndMinutes + delayMinutes);
+
+        if (
+          shiftedStartMinutes !== null &&
+          shiftedEndMinutes !== null &&
+          openingStartMinutes !== null &&
+          openingEndMinutes !== null
+        ) {
+          const nextStartMinutes = shiftedStartMinutes + delayMinutes;
+          const nextEndMinutes = shiftedEndMinutes + delayMinutes;
+          if (nextStartMinutes < openingStartMinutes || nextEndMinutes > openingEndMinutes) {
+            nextWarnings[item.id] = 'Quán này sẽ đóng cửa nếu mình đi trễ hơn!';
+          }
+        }
+
+        return {
+          ...item,
+          start_time: nextStartTime,
+          end_time: nextEndTime,
+        };
+      });
+
+      setLateWarningsByItemId(nextWarnings);
+      return updated;
+    });
+  }, []);
+
   const handleAddCustomStop = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -502,6 +653,7 @@ export default function TripDashboardPage({ params }: PageProps) {
         description: newStop.description.trim() || 'Điểm đến tự thiết lập.',
         start_time: newStop.startTime,
         end_time: newStop.endTime,
+        estimated_cost: 150000,
         place_id: placeId,
         place: nextPlace,
       };
@@ -559,6 +711,17 @@ export default function TripDashboardPage({ params }: PageProps) {
     return pois.filter((p) => cats.includes(p.category));
   }, [selectedMood, pois]);
 
+  const photoProgress = useMemo(() => {
+    const total = itinerary.length;
+    const completed = capturedPhotoItemIds.size;
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return {
+      total,
+      completed,
+      percent,
+    };
+  }, [capturedPhotoItemIds, itinerary.length]);
+
   const triggerCatReminder = useCallback(() => {
     setCatReminder(getReminderByTime());
     setIsCatReminderOpen(true);
@@ -591,12 +754,49 @@ export default function TripDashboardPage({ params }: PageProps) {
     };
   }, [isCatReminderOpen]);
 
+  useEffect(() => {
+    setLoveCountdown(getLoveCountdown());
+
+    const intervalId = window.setInterval(() => {
+      setLoveCountdown(getLoveCountdown());
+    }, 60 * 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    const updateOverlayByScroll = () => {
+      const nextOpacity = Math.max(0, 1 - window.scrollY / 260);
+      setHeroOverlayOpacity(nextOpacity);
+    };
+
+    updateOverlayByScroll();
+    window.addEventListener('scroll', updateOverlayByScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', updateOverlayByScroll);
+    };
+  }, []);
+
   return (
     <main className="relative min-h-screen space-y-6 overflow-hidden bg-[#FDFCFB] p-4 pb-28 sm:space-y-8 sm:p-6 md:space-y-10 md:p-10">
       <div className="pointer-events-none absolute -left-20 top-4 h-48 w-48 animate-mist rounded-full bg-rose/20 blur-3xl sm:top-10 sm:h-72 sm:w-72" />
       <div className="pointer-events-none absolute right-0 top-16 h-52 w-52 animate-mist rounded-full bg-pine/15 blur-3xl [animation-delay:1s] sm:top-28 sm:h-80 sm:w-80" />
 
-      <header className="relative space-y-3 transition-all duration-700">
+      <section className="relative z-[2] space-y-6">
+        <div className="absolute inset-0 overflow-hidden rounded-[28px]">
+          <WeatherOverlay mood={weatherMood} fadeOpacity={heroOverlayOpacity} />
+        </div>
+
+        <header className="relative z-[2] space-y-3 transition-all duration-700">
+        <div className="inline-flex animate-fade-up rounded-full border border-[#D4A5A5]/45 bg-white/70 px-4 py-2 text-[#A36464] shadow-[0_8px_24px_rgba(212,165,165,0.22)] backdrop-blur-md [animation-delay:40ms]">
+          <p className="font-handwriting text-base sm:text-lg">
+            {loveCountdown.isReached
+              ? 'Minh da toi Da Lat roi, di thoi em oi!'
+              : `Con ${loveCountdown.days} ngay, ${loveCountdown.hours} gio nua la minh gap Da Lat cung nhau roi!`}
+          </p>
+        </div>
         <p className="inline-flex animate-fade-up items-center gap-2 rounded-full border border-white/25 bg-white/55 px-4 py-1.5 text-xs text-pine backdrop-blur-md">
           <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
           Dalat Dream Dashboard
@@ -617,27 +817,54 @@ export default function TripDashboardPage({ params }: PageProps) {
             </Link>
           </div>
         )}
-      </header>
 
-      <section
-        className={`animate-fade-up rounded-dalat border p-4 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl transition-all duration-700 sm:p-5 [animation-delay:120ms] ${
-          weatherAlert.level === 'high'
-            ? 'border-rose/40 bg-rose/15'
-            : weatherAlert.level === 'medium'
-              ? 'border-pine/35 bg-white/60'
-              : 'border-white/30 bg-white/55'
-        }`}
-      >
-        <div className="flex items-start gap-3">
-          <AlertTriangle className={`mt-0.5 h-5 w-5 ${weatherAlert.level === 'high' ? 'text-rose' : 'text-pine'}`} />
-          <div>
-            <p className="inline-flex rounded-full border border-white/40 bg-white/70 px-3 py-1 text-[11px] uppercase tracking-wide text-[#4A4A4A]/80">
-              Cảnh báo thời tiết · {weatherAlert.label}
-            </p>
-            <p className="mt-2 text-sm text-[#4A4A4A] sm:text-[15px]">{weatherAlert.message}</p>
-            <p className="mt-1 text-xs text-[#4A4A4A]/70">{weatherAlert.hint}</p>
+        <div className="animate-fade-up flex flex-wrap items-center gap-2 [animation-delay:280ms]">
+          <button
+            type="button"
+            onClick={() => handleLateStart(30)}
+            className="rounded-full border border-rose/35 bg-white/75 px-3 py-2 text-xs text-[#A36464] transition hover:bg-white"
+          >
+            Bắt đầu muộn +30p
+          </button>
+          <button
+            type="button"
+            onClick={() => handleLateStart(60)}
+            className="rounded-full border border-rose/35 bg-white/75 px-3 py-2 text-xs text-[#A36464] transition hover:bg-white"
+          >
+            Bắt đầu muộn +1h
+          </button>
+        </div>
+
+        <div className="animate-fade-up rounded-2xl border border-[#7A9D8C]/25 bg-white/70 p-3 [animation-delay:320ms]">
+          <p className="text-xs text-[#527061]">
+            Chúng mình đã hoàn thành <strong>{photoProgress.completed}/{photoProgress.total}</strong> điểm đến tuyệt vời tại Đà Lạt.
+          </p>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#dfe9e4]">
+            <div className="h-full rounded-full bg-[#7A9D8C] transition-all duration-500" style={{ width: `${photoProgress.percent}%` }} />
           </div>
         </div>
+        </header>
+
+        <section
+          className={`relative z-[2] animate-fade-up rounded-dalat border p-4 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl transition-all duration-700 sm:p-5 [animation-delay:120ms] ${
+            weatherAlert.level === 'high'
+              ? 'border-rose/40 bg-rose/15'
+              : weatherAlert.level === 'medium'
+                ? 'border-pine/35 bg-white/60'
+                : 'border-white/30 bg-white/55'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className={`mt-0.5 h-5 w-5 ${weatherAlert.level === 'high' ? 'text-rose' : 'text-pine'}`} />
+            <div>
+              <p className="inline-flex rounded-full border border-white/40 bg-white/70 px-3 py-1 text-[11px] uppercase tracking-wide text-[#4A4A4A]/80">
+                Cảnh báo thời tiết · {weatherAlert.label}
+              </p>
+              <p className="mt-2 text-sm text-[#4A4A4A] sm:text-[15px]">{weatherAlert.message}</p>
+              <p className="mt-1 text-xs text-[#4A4A4A]/70">{weatherAlert.hint}</p>
+            </div>
+          </div>
+        </section>
       </section>
 
       <section className="relative grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
@@ -987,71 +1214,19 @@ export default function TripDashboardPage({ params }: PageProps) {
                 <p className="mt-1 text-xs text-[#4A4A4A]/70">Thử đổi sang “Tất cả” để xem toàn bộ timeline.</p>
               </div>
             ) : (
-              <div className="space-y-5 sm:space-y-8">
-                {filteredItinerary.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="relative pl-10 transition-all duration-700 hover:-translate-y-0.5"
-                    onClick={() => {
-                      if (item.place?.id) handleFocusPlaceOnMap(item.place.id);
-                    }}
-                  >
-                    {index < filteredItinerary.length - 1 && (
-                      <span className="absolute left-3 top-7 h-[calc(100%+1.5rem)] w-px border-l border-dashed border-[#869484]/35" />
-                    )}
-                    <span
-                      className={`absolute left-0 top-1.5 h-6 w-6 rounded-full border backdrop-blur-sm transition-all duration-300 ${
-                        selectedPoiId === item.place?.id
-                          ? 'border-pine/70 bg-pine/75 ring-4 ring-pine/25 shadow-[0_0_0_1px_rgba(255,255,255,0.7)]'
-                          : 'border-[#869484]/30 bg-[#869484]/15'
-                      }`}
-                    />
-
-                    <div className={`rounded-dalat border bg-white/55 p-4 sm:p-6 shadow-[0_10px_26px_rgba(74,74,74,0.09)] backdrop-blur-md ${selectedPoiId === item.place?.id ? 'border-pine/50 ring-1 ring-pine/40' : 'border-white/25'}`}>
-                      <p className="text-xs tracking-wide text-[#869484]">
-                        {item.start_time ?? '--:--'} {item.end_time ? `→ ${item.end_time}` : ''}
-                      </p>
-                      <h3 className="mt-2 text-xl text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
-                        {item.place?.name ?? item.title}
-                      </h3>
-                      <p className="mt-1 text-sm text-[#4A4A4A]/75">{item.title}</p>
-                      {item.description && <p className="mt-2 text-sm leading-7 text-[#4A4A4A]/70">{item.description}</p>}
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#4A4A4A]/75">
-                        <span>Di chuyển:</span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={travelMinutesByItemId[item.id] ?? 0}
-                          onChange={(event) => handleSetTravelMinutes(item.id, event.target.value)}
-                          className="w-20 rounded-lg border border-white/40 bg-white/70 px-2 py-1.5 outline-none"
-                        />
-                        <span>phút</span>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (item.place?.id) handleFocusPlaceOnMap(item.place.id);
-                          }}
-                          className="w-full sm:ml-auto sm:w-auto rounded-full border border-pine/30 bg-white/70 px-3 py-2 text-[11px] text-pine transition hover:bg-white"
-                        >
-                          Trỏ trên map
-                        </button>
-                      </div>
-
-                      {isRaining && (
-                        <button
-                          type="button"
-                          onClick={handleSuggestIndoorCafe}
-                          className="mt-4 rounded-full border border-[#869484]/30 bg-white/55 px-4 py-2 text-xs text-[#869484] transition-all duration-700 hover:bg-white/75"
-                        >
-                          Xem quán cafe gần đây có mái che
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ItineraryTimeline
+                items={filteredItinerary}
+                selectedPoiId={selectedPoiId}
+                isRaining={isRaining}
+                hourlyTemperatureByHour={hourlyTemperatureByHour}
+                lateWarningsByItemId={lateWarningsByItemId}
+                capturedPhotoItemIds={capturedPhotoItemIds}
+                travelMinutesByItemId={travelMinutesByItemId}
+                onSetTravelMinutes={handleSetTravelMinutes}
+                onCapturePhoto={handleCapturePhoto}
+                onFocusPlaceOnMap={handleFocusPlaceOnMap}
+                onSuggestIndoorCafe={handleSuggestIndoorCafe}
+              />
             )}
 
               <div className="animate-fade-up rounded-dalat border border-pine/25 bg-white/60 p-4 sm:p-5 text-sm text-[#4A4A4A] shadow-[0_10px_26px_rgba(74,74,74,0.07)] [animation-delay:280ms]">
@@ -1148,7 +1323,12 @@ export default function TripDashboardPage({ params }: PageProps) {
                 Chưa có POI để hiển thị trên bản đồ.
               </div>
             ) : (
-              <DalatMap points={pois} selectedPointId={selectedPoiId} onSelectPoint={setSelectedPoiId} />
+              <DalatMap
+                points={pois}
+                selectedPointId={selectedPoiId}
+                focusZoomLevel={mapFocusZoomLevel}
+                onSelectPoint={setSelectedPoiId}
+              />
             )}
           </CardContent>
         </Card>
