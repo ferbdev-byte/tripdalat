@@ -57,8 +57,26 @@ function FocusOnPoint({
 
   useEffect(() => {
     if (!point) return;
+    const lat = Number(point.latitude);
+    const lng = Number(point.longitude);
+    const safeZoom = Number.isFinite(zoomLevel) ? Math.min(18, Math.max(3, zoomLevel)) : 14;
+    const isInLeafletRange = lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !isInLeafletRange) {
+      try {
+        map.flyTo(DALAT_CENTER, safeZoom, { duration: 0.6 });
+      } catch {
+        // Ignore invalid runtime focus attempts and keep map stable.
+      }
+      return;
+    }
     // Keep map interaction smooth when selection changes from timeline clicks.
-    map.flyTo([point.latitude, point.longitude], zoomLevel, { duration: 0.8 });
+    try {
+      map.flyTo([lat, lng], safeZoom, { duration: 0.8 });
+    } catch {
+      map.flyTo(DALAT_CENTER, safeZoom, { duration: 0.6 });
+      return;
+    }
 
     const selectedMarker = markerRefs.current.get(point.id);
     selectedMarker?.openPopup();
@@ -84,7 +102,12 @@ export function DalatMap({ points, height = 260, selectedPointId = null, focusZo
         const latitude = point.latitude ?? point.coordinates?.lat;
         const longitude = point.longitude ?? point.coordinates?.lng;
 
-        if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        if (
+          typeof latitude !== 'number' ||
+          typeof longitude !== 'number' ||
+          !Number.isFinite(latitude) ||
+          !Number.isFinite(longitude)
+        ) {
           return null;
         }
 

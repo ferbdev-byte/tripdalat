@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { AlertTriangle, Backpack, BrainCircuit, Cat, CheckCircle2, Circle, CloudDrizzle, Code2, Coffee, Compass, Dice6, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella, X } from 'lucide-react';
+import { AlertTriangle, Backpack, BrainCircuit, Cat, CheckCircle2, ChevronDown, Circle, CloudDrizzle, Code2, Coffee, Compass, Dice6, MapPin, MapPinned, PlusCircle, Sparkles, Umbrella, UtensilsCrossed, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Toaster, toast } from 'sonner';
@@ -227,6 +227,10 @@ export default function TripDashboardPage({ params }: PageProps) {
   const [heroOverlayOpacity, setHeroOverlayOpacity] = useState(1);
   const [lateWarningsByItemId, setLateWarningsByItemId] = useState<Record<string, string>>({});
   const [capturedPhotoItemIds, setCapturedPhotoItemIds] = useState<Set<string>>(new Set());
+  const [isWeatherAlertExpanded, setIsWeatherAlertExpanded] = useState(false);
+  const [isInsightExpanded, setIsInsightExpanded] = useState(false);
+  const [isUtilityExpanded, setIsUtilityExpanded] = useState(false);
+  const [isMapExpandedMobile, setIsMapExpandedMobile] = useState(false);
   const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [newStop, setNewStop] = useState<NewStopForm>({
     placeName: '',
@@ -790,7 +794,7 @@ export default function TripDashboardPage({ params }: PageProps) {
   }, []);
 
   return (
-    <main className="relative min-h-screen space-y-6 overflow-hidden bg-[#FDFCFB] p-4 pb-28 sm:space-y-8 sm:p-6 md:space-y-10 md:p-10">
+    <main className="relative min-h-screen space-y-5 overflow-hidden bg-[#FDFCFB] px-3 pb-[calc(7.25rem+env(safe-area-inset-bottom))] pt-4 sm:space-y-8 sm:p-6 md:space-y-10 md:p-10">
       <div className="pointer-events-none absolute -left-20 top-4 h-48 w-48 animate-mist rounded-full bg-rose/20 blur-3xl sm:top-10 sm:h-72 sm:w-72" />
       <div className="pointer-events-none absolute right-0 top-16 h-52 w-52 animate-mist rounded-full bg-pine/15 blur-3xl [animation-delay:1s] sm:top-28 sm:h-80 sm:w-80" />
 
@@ -821,8 +825,9 @@ export default function TripDashboardPage({ params }: PageProps) {
           <div className="animate-fade-up [animation-delay:260ms]">
             <Link
               href={`/trips/${tripId}/food-menu`}
-              className="inline-flex rounded-full border border-pine/30 bg-white/70 px-4 py-2 text-xs text-pine transition hover:bg-white"
+              className="inline-flex items-center gap-2 rounded-full border border-[#6f927f] bg-[#7A9D8C] px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.08em] text-white shadow-[0_12px_26px_rgba(82,112,97,0.34)] transition hover:bg-[#6f927f]"
             >
+              <UtensilsCrossed className="h-3.5 w-3.5" />
               Mở layout menu đồ ăn
             </Link>
           </div>
@@ -856,55 +861,93 @@ export default function TripDashboardPage({ params }: PageProps) {
         </header>
 
         <section
-          className={`relative z-[2] animate-fade-up rounded-dalat border p-4 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl transition-all duration-700 sm:p-5 [animation-delay:120ms] ${
+          className={`relative z-[2] animate-fade-up rounded-dalat border p-3 shadow-[0_10px_24px_rgba(74,74,74,0.07)] backdrop-blur-xl transition-all duration-700 sm:p-4 [animation-delay:120ms] ${
             weatherAlert.level === 'high'
-              ? 'border-rose/40 bg-rose/15'
+              ? 'border-rose/35 bg-rose/12'
               : weatherAlert.level === 'medium'
-                ? 'border-pine/35 bg-white/60'
-                : 'border-white/30 bg-white/55'
+                ? 'border-pine/30 bg-white/55'
+                : 'border-white/30 bg-white/50'
           }`}
         >
-          <div className="flex items-start gap-3">
-            <AlertTriangle className={`mt-0.5 h-5 w-5 ${weatherAlert.level === 'high' ? 'text-rose' : 'text-pine'}`} />
-            <div>
-              <p className="inline-flex rounded-full border border-white/40 bg-white/70 px-3 py-1 text-[11px] uppercase tracking-wide text-[#4A4A4A]/80">
-                Cảnh báo thời tiết · {weatherAlert.label}
-              </p>
-              <p className="mt-2 text-sm text-[#4A4A4A] sm:text-[15px]">{weatherAlert.message}</p>
-              <p className="mt-1 text-xs text-[#4A4A4A]/70">{weatherAlert.hint}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className={`mt-0.5 h-4 w-4 ${weatherAlert.level === 'high' ? 'text-rose' : 'text-pine'}`} />
+              <div>
+                <p className="inline-flex rounded-full border border-white/40 bg-white/70 px-2.5 py-1 text-[10px] uppercase tracking-wide text-[#4A4A4A]/80">
+                  Cảnh báo thời tiết · {weatherAlert.label}
+                </p>
+                <p className="mt-1 text-xs text-[#4A4A4A]/85 sm:text-sm">{weatherAlert.message}</p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setIsWeatherAlertExpanded((previous) => !previous)}
+              className="inline-flex items-center gap-1 rounded-full border border-white/35 bg-white/70 px-2.5 py-1 text-[11px] text-[#4A4A4A]/80 transition hover:bg-white"
+            >
+              Chi tiết
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isWeatherAlertExpanded ? 'rotate-180' : 'rotate-0'}`} />
+            </button>
           </div>
+
+          {isWeatherAlertExpanded && (
+            <p className="mt-2 border-t border-white/40 pt-2 text-xs text-[#4A4A4A]/75">{weatherAlert.hint}</p>
+          )}
         </section>
       </section>
 
-      <section className="relative grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
-        <div className="animate-fade-up rounded-dalat border border-white/30 bg-white/55 p-5 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl [animation-delay:140ms]">
-          <p className="text-xs uppercase tracking-wide text-pine">Comfort Score</p>
-          <p className="mt-2 text-3xl text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>{weatherInsight.comfortScore}/100</p>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-mist/80">
-            <div className="h-full rounded-full bg-pine transition-all duration-700" style={{ width: `${weatherInsight.comfortScore}%` }} />
-          </div>
-        </div>
+      <section className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setIsInsightExpanded((previous) => !previous)}
+          className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/60 px-4 py-2 text-xs text-[#4A4A4A]/80 backdrop-blur-xl"
+        >
+          Chỉ số thời tiết nâng cao
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isInsightExpanded ? 'rotate-180' : 'rotate-0'}`} />
+        </button>
 
-        <div className="animate-fade-up rounded-dalat border border-white/30 bg-white/55 p-5 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl [animation-delay:220ms]">
-          <p className="text-xs uppercase tracking-wide text-pine">Rủi ro mưa trung bình</p>
-          <p className="mt-2 inline-flex items-center gap-2 text-3xl text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
-            <Umbrella className="h-5 w-5 text-rose" />
-            {weatherInsight.avgRain}%
-          </p>
-          <p className="mt-2 text-xs text-[#4A4A4A]/70">{weatherInsight.riskyCount} hoạt động có nguy cơ mưa cao.</p>
-        </div>
+        {isInsightExpanded && (
+          <div className="relative grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
+            <div className="animate-fade-up rounded-dalat border border-white/30 bg-white/55 p-5 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl [animation-delay:140ms]">
+              <p className="text-xs uppercase tracking-wide text-pine">Comfort Score</p>
+              <p className="mt-2 text-3xl text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>{weatherInsight.comfortScore}/100</p>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-mist/80">
+                <div className="h-full rounded-full bg-pine transition-all duration-700" style={{ width: `${weatherInsight.comfortScore}%` }} />
+              </div>
+            </div>
 
-        <div className="animate-fade-up rounded-dalat border border-white/30 bg-white/55 p-5 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl [animation-delay:300ms]">
-          <p className="text-xs uppercase tracking-wide text-pine">Độ sẵn sàng indoor</p>
-          <p className="mt-2 text-3xl text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>{weatherInsight.indoorRatio}%</p>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-mist/80">
-            <div className="h-full rounded-full bg-rose transition-all duration-700" style={{ width: `${weatherInsight.indoorRatio}%` }} />
+            <div className="animate-fade-up rounded-dalat border border-white/30 bg-white/55 p-5 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl [animation-delay:220ms]">
+              <p className="text-xs uppercase tracking-wide text-pine">Rủi ro mưa trung bình</p>
+              <p className="mt-2 inline-flex items-center gap-2 text-3xl text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
+                <Umbrella className="h-5 w-5 text-rose" />
+                {weatherInsight.avgRain}%
+              </p>
+              <p className="mt-2 text-xs text-[#4A4A4A]/70">{weatherInsight.riskyCount} hoạt động có nguy cơ mưa cao.</p>
+            </div>
+
+            <div className="animate-fade-up rounded-dalat border border-white/30 bg-white/55 p-5 shadow-[0_12px_30px_rgba(74,74,74,0.08)] backdrop-blur-xl [animation-delay:300ms]">
+              <p className="text-xs uppercase tracking-wide text-pine">Độ sẵn sàng indoor</p>
+              <p className="mt-2 text-3xl text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>{weatherInsight.indoorRatio}%</p>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-mist/80">
+                <div className="h-full rounded-full bg-rose transition-all duration-700" style={{ width: `${weatherInsight.indoorRatio}%` }} />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setIsUtilityExpanded((previous) => !previous)}
+          className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/60 px-4 py-2 text-xs text-[#4A4A4A]/80 backdrop-blur-xl"
+        >
+          Tiện ích cá nhân hoá
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isUtilityExpanded ? 'rotate-180' : 'rotate-0'}`} />
+        </button>
+
+        {isUtilityExpanded && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Spin Wheel */}
         <Card className="rounded-dalat border border-white/25 bg-white/50 backdrop-blur-xl shadow-[0_14px_36px_rgba(74,74,74,0.08)]">
           <CardHeader className="p-5">
@@ -1037,9 +1080,11 @@ export default function TripDashboardPage({ params }: PageProps) {
             )}
           </CardContent>
         </Card>
+          </div>
+        )}
       </section>
 
-      <div className="relative grid grid-cols-1 gap-6 sm:gap-8 xl:grid-cols-3 xl:gap-10">
+      <div className="relative grid grid-cols-1 gap-5 sm:gap-8 xl:grid-cols-3 xl:gap-10">
         <Card id="weather-hub" className="weather-hub animate-fade-up bg-white/40 backdrop-blur-xl border border-white/20 rounded-dalat shadow-[0_16px_48px_rgba(74,74,74,0.08)] transition-all duration-700 [animation-delay:120ms] xl:col-span-1">
           <CardHeader className="p-5 sm:p-8">
             <CardTitle className="inline-flex items-center gap-2" style={{ fontFamily: 'var(--font-heading), serif' }}>
@@ -1306,13 +1351,23 @@ export default function TripDashboardPage({ params }: PageProps) {
 
         <Card id="map-preview-card" className="animate-fade-up bg-white/40 backdrop-blur-xl border border-white/20 rounded-dalat shadow-[0_16px_48px_rgba(74,74,74,0.08)] transition-all duration-700 [animation-delay:320ms] xl:col-span-1">
           <CardHeader className="p-5 sm:p-8">
-            <CardTitle className="inline-flex items-center gap-2" style={{ fontFamily: 'var(--font-heading), serif' }}>
-              <MapPin className="h-5 w-5 text-[#869484]" strokeWidth={1.5} />
-              Map Preview
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="inline-flex items-center gap-2" style={{ fontFamily: 'var(--font-heading), serif' }}>
+                <MapPin className="h-5 w-5 text-[#869484]" strokeWidth={1.5} />
+                Map Preview
+              </CardTitle>
+              <button
+                type="button"
+                onClick={() => setIsMapExpandedMobile((previous) => !previous)}
+                className="sm:hidden inline-flex items-center gap-1 rounded-full border border-white/35 bg-white/75 px-3 py-1.5 text-[11px] text-[#4A4A4A]/80"
+              >
+                {isMapExpandedMobile ? 'Ẩn map' : 'Mở map'}
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isMapExpandedMobile ? 'rotate-180' : 'rotate-0'}`} />
+              </button>
+            </div>
             <CardDescription>Bản đồ thu nhỏ hiển thị POI indoor (xanh) và outdoor (cam).</CardDescription>
           </CardHeader>
-          <CardContent className="p-5 pt-0 sm:p-8 sm:pt-0">
+          <CardContent className={`p-5 pt-0 sm:p-8 sm:pt-0 ${isMapExpandedMobile ? 'block' : 'hidden sm:block'}`}>
             {selectedPoi && (
               <div className="mb-3 rounded-2xl border border-white/35 bg-white/60 p-3 text-xs text-[#4A4A4A]/80">
                 <p>
@@ -1371,7 +1426,9 @@ export default function TripDashboardPage({ params }: PageProps) {
 
       <div
         className={`fixed right-4 z-50 w-[min(21rem,calc(100vw-2rem))] transition-all duration-500 sm:right-6 ${
-          isCatReminderOpen ? 'bottom-24 translate-y-0 opacity-100 sm:bottom-6' : 'pointer-events-none bottom-20 translate-y-4 opacity-0 sm:bottom-4'
+          isCatReminderOpen
+            ? 'bottom-[calc(6.5rem+env(safe-area-inset-bottom))] translate-y-0 opacity-100 sm:bottom-6'
+            : 'pointer-events-none bottom-[calc(5.5rem+env(safe-area-inset-bottom))] translate-y-4 opacity-0 sm:bottom-4'
         }`}
       >
         <div className="rounded-dalat border border-white/30 bg-white/85 p-3 shadow-[0_16px_36px_rgba(74,74,74,0.15)] backdrop-blur-xl">
@@ -1396,11 +1453,11 @@ export default function TripDashboardPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div className="fixed inset-x-4 bottom-4 z-40 flex items-center justify-between gap-2 rounded-full border border-white/25 bg-white/75 p-2 shadow-[0_14px_30px_rgba(74,74,74,0.14)] backdrop-blur-xl xl:hidden">
+      <div className="fixed inset-x-3 bottom-[calc(0.6rem+env(safe-area-inset-bottom))] z-40 flex items-center justify-between gap-1.5 rounded-full border border-white/25 bg-white/80 p-1.5 shadow-[0_14px_30px_rgba(74,74,74,0.14)] backdrop-blur-xl xl:hidden">
         <button
           type="button"
           onClick={() => handleScrollToSection('weather-hub')}
-          className="flex flex-1 flex-col items-center gap-1 rounded-full px-3 py-2 text-[11px] text-[#4A4A4A]/75"
+          className="flex min-h-[52px] flex-1 flex-col items-center justify-center gap-1 rounded-full px-2 py-2 text-[10px] text-[#4A4A4A]/80"
         >
           <CloudDrizzle className="h-4 w-4 text-pine" />
           Thời tiết
@@ -1408,7 +1465,7 @@ export default function TripDashboardPage({ params }: PageProps) {
         <button
           type="button"
           onClick={() => handleScrollToSection('timeline-card')}
-          className="flex flex-1 flex-col items-center gap-1 rounded-full px-3 py-2 text-[11px] text-[#4A4A4A]/75"
+          className="flex min-h-[52px] flex-1 flex-col items-center justify-center gap-1 rounded-full px-2 py-2 text-[10px] text-[#4A4A4A]/80"
         >
           <Compass className="h-4 w-4 text-pine" />
           Timeline
@@ -1419,7 +1476,7 @@ export default function TripDashboardPage({ params }: PageProps) {
             setIsAddStopOpen(true);
             handleScrollToSection('add-stop-panel');
           }}
-          className="flex flex-1 flex-col items-center gap-1 rounded-full bg-pine px-3 py-2 text-[11px] text-white"
+          className="flex min-h-[52px] flex-1 flex-col items-center justify-center gap-1 rounded-full bg-pine px-2 py-2 text-[10px] font-medium text-white"
         >
           <PlusCircle className="h-4 w-4" />
           Thêm điểm
@@ -1427,7 +1484,7 @@ export default function TripDashboardPage({ params }: PageProps) {
         <button
           type="button"
           onClick={() => handleScrollToSection('map-preview-card')}
-          className="flex flex-1 flex-col items-center gap-1 rounded-full px-3 py-2 text-[11px] text-[#4A4A4A]/75"
+          className="flex min-h-[52px] flex-1 flex-col items-center justify-center gap-1 rounded-full px-2 py-2 text-[10px] text-[#4A4A4A]/80"
         >
           <MapPinned className="h-4 w-4 text-pine" />
           Bản đồ

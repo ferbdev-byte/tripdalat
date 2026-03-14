@@ -6,6 +6,7 @@ body {
   @apply bg-[#FDFCFB] text-[#4A4A4A] antialiased;
   font-family: var(--font-body), 'Inter', system-ui, sans-serif;
   min-height: 100vh;
+  line-height: 1.55;
   background-image:
     radial-gradient(circle at 10% 15%, rgba(212, 165, 165, 0.18), transparent 34%),
     radial-gradient(circle at 82% 12%, rgba(134, 148, 132, 0.14), transparent 28%),

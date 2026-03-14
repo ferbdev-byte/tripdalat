@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Camera, Coffee, ExternalLink, MapPin, Shirt, ShoppingBag, Snowflake, Umbrella, UtensilsCrossed, Wallet } from 'lucide-react';
+import { Camera, ChevronDown, Coffee, ExternalLink, MapPin, Shirt, ShoppingBag, Snowflake, Umbrella, UtensilsCrossed, Wallet } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Drawer } from 'vaul';
 import confetti from 'canvas-confetti';
@@ -124,6 +124,7 @@ export function ItineraryTimeline({
   onSuggestIndoorCafe,
 }: ItineraryTimelineProps) {
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set());
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [photoMemoryByPlaceId, setPhotoMemoryByPlaceId] = useState<Record<string, boolean>>({});
   const discoveryById = useMemo(() => new Map(DALAT_LOCAL_DISCOVERY.map((poi) => [poi.id, poi])), []);
@@ -159,10 +160,22 @@ export function ItineraryTimeline({
     );
   }, []);
 
+  const toggleItemExpanded = (itemId: string) => {
+    setExpandedItemIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
   return (
     <>
       <motion.div
-        className="space-y-5 sm:space-y-8"
+        className="space-y-3.5 sm:space-y-8"
         variants={containerVariants}
         initial="hidden"
         animate="show"
@@ -189,6 +202,7 @@ export function ItineraryTimeline({
           const temperatureAtHour = hourlyTemperatureByHour[hourKey];
           const needsThickJacket = Number.isFinite(temperatureAtHour) && temperatureAtHour < 16;
           const isCaptured = capturedPhotoItemIds.has(item.id);
+          const isExpanded = expandedItemIds.has(item.id);
           const lateWarningMessage = lateWarningsByItemId[item.id] ?? null;
           const googleMapsLink =
             item.place
@@ -200,7 +214,7 @@ export function ItineraryTimeline({
               key={item.id}
               variants={itemVariants}
               transition={{ duration: 0.35, ease: 'easeOut' }}
-              className="relative pl-10"
+              className="relative pl-8 sm:pl-10"
               onMouseEnter={() => {
                 if (item.place?.id) {
                   onFocusPlaceOnMap(item.place.id, { zoomLevel: 14, scrollToMap: false });
@@ -213,7 +227,7 @@ export function ItineraryTimeline({
               }}
             >
               {index < items.length - 1 && (
-                <span className="absolute left-3 top-7 h-[calc(100%+1.5rem)] w-px bg-gradient-to-b from-[#7A9D8C]/50 to-[#A67B5B]/25" />
+                <span className="absolute left-2.5 top-7 h-[calc(100%+1.1rem)] w-px bg-gradient-to-b from-[#7A9D8C]/50 to-[#A67B5B]/25 sm:left-3 sm:h-[calc(100%+1.5rem)]" />
               )}
 
               <span
@@ -231,7 +245,7 @@ export function ItineraryTimeline({
                   y: -4,
                   boxShadow: '0 0 0 1px rgba(122, 157, 140, 0.35), 0 20px 32px rgba(122, 157, 140, 0.18)',
                 }}
-                className={`rounded-3xl border bg-[#F9F9F9]/80 p-4 shadow-[0_10px_26px_rgba(74,74,74,0.09)] backdrop-blur-md transition-all duration-300 sm:p-6 ${
+                className={`rounded-3xl border bg-[#F9F9F9]/80 p-3.5 shadow-[0_10px_26px_rgba(74,74,74,0.09)] backdrop-blur-md transition-all duration-300 sm:p-6 ${
                   isSelected
                     ? 'border-[#7A9D8C]/55 ring-1 ring-[#7A9D8C]/35'
                     : 'border-[#A67B5B]/18 hover:border-[#A67B5B]/35'
@@ -249,12 +263,6 @@ export function ItineraryTimeline({
                       Indoor
                     </span>
                   )}
-                  {item.place?.outfit_concept && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-[#7A9D8C]/35 bg-[#7A9D8C]/10 px-2.5 py-1 text-[10px] uppercase tracking-wide text-[#527061]">
-                      <Shirt className="h-3 w-3" />
-                      Outfit: {item.place.outfit_concept}
-                    </span>
-                  )}
                   {typeof item.estimated_cost === 'number' && item.estimated_cost > 0 && (
                     <span className="rounded-full border border-[#7A9D8C]/30 bg-[#7A9D8C]/10 px-2.5 py-1 text-[10px] uppercase tracking-wide text-[#527061]">
                       ~{toVnd(item.estimated_cost)} VND
@@ -268,42 +276,11 @@ export function ItineraryTimeline({
                   )}
                 </div>
 
-                <h3 className="mt-2 text-xl text-[#4A4A4A]" style={{ fontFamily: 'var(--font-heading), serif' }}>
+                <h3 className="mt-2 text-lg text-[#4A4A4A] sm:text-xl" style={{ fontFamily: 'var(--font-heading), serif' }}>
                   {item.place?.name ?? item.title}
                 </h3>
                 <p className="mt-1 text-sm text-[#4A4A4A]/75">{item.title}</p>
-                {item.description && <p className="mt-2 text-sm leading-7 text-[#4A4A4A]/70">{item.description}</p>}
-
-                {item.place?.temp_advice && (
-                  <div className="mt-3 rounded-xl border border-[#7A9D8C]/25 bg-white/75 px-3 py-2 text-xs text-[#4A4A4A]/80">
-                    <p>{item.place.temp_advice}</p>
-                    {needsThickJacket && (
-                      <p className="mt-1 inline-flex items-center gap-1.5 text-[#527061]">
-                        <Snowflake className="h-3.5 w-3.5" />
-                        Trời dưới 16°C, nhớ mang áo khoác dày.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {lateWarningMessage && (
-                  <div className="mt-3 rounded-xl border border-[#DA6B6B]/40 bg-[#ffecec] px-3 py-2 text-xs text-[#B24545]">
-                    {lateWarningMessage}
-                  </div>
-                )}
-
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#4A4A4A]/75">
-                  <span>Di chuyển:</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={travelMinutesByItemId[item.id] ?? 0}
-                    onChange={(event) => onSetTravelMinutes(item.id, event.target.value)}
-                    className="w-20 rounded-lg border border-[#A67B5B]/25 bg-white/90 px-2 py-1.5 outline-none"
-                    onClick={(event) => event.stopPropagation()}
-                  />
-                  <span>phút</span>
-                </div>
+                {item.description && <p className="mt-2 line-clamp-2 text-sm leading-7 text-[#4A4A4A]/70">{item.description}</p>}
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   {googleMapsLink && (
@@ -318,6 +295,18 @@ export function ItineraryTimeline({
                       Dẫn đường · {travelMode === 'walking' ? 'Đi bộ' : 'Xe máy'}
                     </a>
                   )}
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleItemExpanded(item.id);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#A67B5B]/30 bg-white/85 px-3 py-2 text-[11px] text-[#7c5a42] transition hover:bg-white"
+                  >
+                    Chi tiết
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : 'rotate-0'}`} />
+                  </button>
+
                   <button
                     type="button"
                     onClick={(event) => {
@@ -353,18 +342,60 @@ export function ItineraryTimeline({
                   </button>
                 </div>
 
-                {isRaining && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onSuggestIndoorCafe();
-                    }}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-[#D4A5A5]/45 bg-[#D4A5A5]/20 px-4 py-2 text-xs text-[#A36464] transition hover:bg-[#D4A5A5]/30"
-                  >
-                    <Umbrella className="h-3.5 w-3.5" />
-                    Xem quán cafe gần đây có mái che
-                  </button>
+                {isExpanded && (
+                  <div className="mt-3 space-y-3 rounded-2xl border border-[#A67B5B]/20 bg-white/70 p-3">
+                    {item.place?.outfit_concept && (
+                      <p className="inline-flex items-center gap-1 rounded-full border border-[#7A9D8C]/35 bg-[#7A9D8C]/10 px-2.5 py-1 text-[10px] uppercase tracking-wide text-[#527061]">
+                        <Shirt className="h-3 w-3" />
+                        Outfit: {item.place.outfit_concept}
+                      </p>
+                    )}
+
+                    {item.place?.temp_advice && (
+                      <div className="rounded-xl border border-[#7A9D8C]/25 bg-white/75 px-3 py-2 text-xs text-[#4A4A4A]/80">
+                        <p>{item.place.temp_advice}</p>
+                        {needsThickJacket && (
+                          <p className="mt-1 inline-flex items-center gap-1.5 text-[#527061]">
+                            <Snowflake className="h-3.5 w-3.5" />
+                            Trời dưới 16°C, nhớ mang áo khoác dày.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {lateWarningMessage && (
+                      <div className="rounded-xl border border-[#DA6B6B]/40 bg-[#ffecec] px-3 py-2 text-xs text-[#B24545]">
+                        {lateWarningMessage}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[#4A4A4A]/75">
+                      <span>Di chuyển:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={travelMinutesByItemId[item.id] ?? 0}
+                        onChange={(event) => onSetTravelMinutes(item.id, event.target.value)}
+                        className="w-20 rounded-lg border border-[#A67B5B]/25 bg-white/90 px-2 py-1.5 outline-none"
+                        onClick={(event) => event.stopPropagation()}
+                      />
+                      <span>phút</span>
+                    </div>
+
+                    {isRaining && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSuggestIndoorCafe();
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#D4A5A5]/45 bg-[#D4A5A5]/20 px-4 py-2 text-xs text-[#A36464] transition hover:bg-[#D4A5A5]/30"
+                      >
+                        <Umbrella className="h-3.5 w-3.5" />
+                        Xem quán cafe gần đây có mái che
+                      </button>
+                    )}
+                  </div>
                 )}
               </motion.div>
             </motion.article>
